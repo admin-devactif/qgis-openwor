@@ -1,10 +1,9 @@
 # -*- coding: iso-8859-1 -*-
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
-from qgis.gui import *
+from imp import reload
+from PyQt4 import QtCore
+from PyQt4.QtCore import QObject, SIGNAL
+from PyQt4.QtGui import QMenu, QAction
 
 import sys
 import doAbout

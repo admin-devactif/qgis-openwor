@@ -28,9 +28,9 @@
  *****************************************************************************/
 """
 
-import ConfigParser
+import configparser
 import os.path
-p = ConfigParser.ConfigParser()
+p = configparser.ConfigParser()
 here = os.path.join(os.path.dirname(__file__),"config.ini")
 p.read(here)
 

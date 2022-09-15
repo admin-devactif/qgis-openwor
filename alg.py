@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 """
 ***************************************************************************
@@ -16,10 +15,10 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingException,
-                       QgsProcessingAlgorithm,QgsVectorLayer,
+                       QgsProcessingAlgorithm, QgsVectorLayer,
 
                        QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterFile,QgsProject,
+                       QgsProcessingParameterFile, QgsProject,
                        QgsProcessingParameterFeatureSink)
 from qgis import processing
 
@@ -99,8 +98,7 @@ class ConvertWORAlgorithm(QgsProcessingAlgorithm):
     def flags(self):
         f = super().flags()
 
-        return f| QgsProcessingAlgorithm.FlagNoThreading
-
+        return f | QgsProcessingAlgorithm.FlagNoThreading
 
     def initAlgorithm(self, config=None):
         """
@@ -113,10 +111,9 @@ class ConvertWORAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 self.INPUT,
-                self.tr('Input WOR'),extension='wor'
+                self.tr('Input WOR'), extension='wor'
             )
         )
-
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -142,7 +139,7 @@ class ConvertWORAlgorithm(QgsProcessingAlgorithm):
         layer_index = 0
 
         for line in wor_lines:
-            line= line.strip()
+            line = line.strip()
 
             if line.upper().startswith('OPEN TABLE'):
                 layer_index += 1
@@ -150,86 +147,16 @@ class ConvertWORAlgorithm(QgsProcessingAlgorithm):
                 table_name = table_name.replace("\\", "/")
 
                 try:
-                    alias = re.match(r".*?as (.+?)\b", line,flags=re.IGNORECASE).group(1)
+                    alias = re.match(r".*?as (.+?)\b", line,
+                                     flags=re.IGNORECASE).group(1)
                 except:
                     alias = ''
 
                 if not table_name.upper().endswith(".TAB"):
                     table_name += ".TAB"
 
-                #if theTest == "INTERACTIVE":
-                #    tempoALIAS = " AS " + os.path.splitext(os.path.basename(str(nTable)))[0]
-                #    # Il faut rechercher la vraie ressource !!! Table logique
-                #    nTable = GetAdress(nTable, nDir)
-                #    nRessource = GetRessourceFile(nTable)
-                #    if nRessource != "": nTable = nRessource
-
                 if not os.path.exists(table_name):
                     table_name = os.path.join(base_dir, table_name)
 
                 vl = QgsVectorLayer(table_name, alias, 'ogr')
                 QgsProject.instance().addMapLayer(vl)
-
-              #if nTable != "":
-              #    tempLayer = tempLayer + "<tr><td>Fichier num." + str(
-              #        iLayer) + "</td><td align='center'>Ok</td><td><font color='#00ff00'>" + str(
-              #        line) + "</font></td></tr>"
-              #    nTypeTable = str(GetTypeTable(nTable))
-              #    nTypeTable = nTypeTable.upper()
-
-              #    if nTypeTable == "NATIVE":
-              #        tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTable.replace("\"", ""))
-              #    elif nTypeTable == "SHAPEFILE":
-              #        nTableRaster = GetRasterFile(nTable, True, False)
-              #        if nTableRaster != "": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(
-              #            nTableRaster.replace("\"", ""))
-              #    elif nTypeTable == "XLS":
-              #        nTableRaster = GetRasterFile(nTable, False, True)
-              #        if nTableRaster != "": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(
-              #            nTableRaster.replace("\"", ""))
-              #    elif nTypeTable == "RASTER":
-              #        nTableRaster = GetRasterFile(nTable, False, False)
-              #        if nTableRaster != "": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(
-              #            nTableRaster.replace("\"", ""))
-              #    elif nTypeTable == "WMS":
-              #        nTableRaster = GetRasterFile(nTable, False, False)
-              #        if nTableRaster != "": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(
-              #            nTableRaster.replace("\"", ""))
-              #    elif nTypeTable == "ASCII":
-              #        nTableRaster = GetRasterFile(nTable, False, True)
-              #        if nTableRaster != "": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(
-              #            nTableRaster.replace("\"", ""))
-               # else:
-               #     tempLayer = tempLayer + "<tr><td>Fichier num." + str(
-               #         iLayer) + "</td><td align='center'>Ko</td><td><b><font color='#ff0000'>" + str(
-               #         line) + "</font></b></td></tr>"
-
-          # elif astring.upper().startswith('SELECT'):
-          #     nstr = astring.replace("\"", "'")
-          #     nstr = nstr.rstrip("\n")
-          #     k = MaketSelect(self, mylistWOR, nstr, k)
-
-          # elif astring.upper().startswith('ADD COLUMN'):
-          #     nstr = astring.replace("\"", "'")
-          #     nstr = nstr.rstrip("\n")
-          #     k = MaketJoin(self, mylistWOR, nstr, k)
-
-          # elif astring.upper().startswith('MAP FROM'):
-          #     nstr = astring.replace("\"", "'")
-          #     nstr = nstr.rstrip("\n")
-          #     k = MaketMap(self, mylistWOR, nstr, k)
-
-          # elif astring.upper().startswith('BROWSE *'):
-          #     nstr = astring.replace("\"", "'")
-          #     nstr = nstr.rstrip("\n")
-          #     k = MaketBrowse(self, mylistWOR, nstr, k)
-
-          # elif astring.upper().startswith('LAYOUT'):  # 'SET WINDOW FRONTWINDOW() PRINTER') :
-          #     nstr = astring.replace("\"", "'")
-          #     nstr = nstr.rstrip("\n")
-          #     k = MaketComposer(self, mylistWOR, nstr, k)
-
-          # else:
-          #     pass
-
-        #ReOrgtLayerMapAna()

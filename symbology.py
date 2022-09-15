@@ -1,20 +1,20 @@
-# -*- coding: iso-8859-1 -*-
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
-from qgis.gui import *
+from PyQt4.QtCore import QString, QVariant, Qt, QSettings
+from PyQt4.QtGui import QColor, QApplication, QCursor, QMessageBox, QDockWidget, QTreeWidget
+from qgis.core import QgsVectorGradientColorRampV2, QgsCategorizedSymbolRendererV2, QgsGraduatedSymbolRendererV2, QgsSymbolV2, QgsRendererCategoryV2, QgsMapLayerRegistry, QgsFeature, QgsVectorLayer, QgsField, QgsGeometry, QgsPoint, QgsSpatialIndex, QgsRasterLayer, QgsColorRampShader, QgsRasterTransparency, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsCoordinateReferenceSystem, QgsApplication
+from qgis.gui import QgsRubberBand
 from osgeo import ogr
+import QGis
 from measured_units import *
-import math 
+import math
 from math import pi,sin,cos,sqrt
 from random import *
-import os 
+import os
 import struct
 from ow_utils import *
 
-tTypeAnaLib = {'PIE':'Camemberts', 'HALF':'H�micycles','BAR':'Histogrammes', 'STACKED':'Histo. empil�s',
-               'GRADUATED':'SymbProp', 'DENSITY':'Densit� points',
+tTypeAnaLib = {'PIE':'Camemberts', 'HALF':'Hï¿½micycles','BAR':'Histogrammes', 'STACKED':'Histo. empilï¿½s',
+               'GRADUATED':'SymbProp', 'DENSITY':'Densitï¿½ points',
                'RANGES':'Classes', 'VALUES':'ValIndiv', 'COLORC':'ColorCont'}
 
 tBrush = {'1':'NoBrush', '2':'SolidPattern', '3':'HorPattern', '4':'VerPattern',
@@ -40,8 +40,8 @@ tLine = {'1':'NoPen', '2':'SolidLine', '3':'DashLine', '4':'DotLine', '5':'DashD
 tLineV2 = {'1':'no', '2':'solid', '3':'dash', '4':'dot', '5':'dash dot', '6':'dash dot dot', '7':'dash' }
 
 
-#3 Dictionnaires pour r�aliser toutes les lignes MAPINFO
-#Ce dictionnaire indique le nombre lignes et leur type. Ex '26': '0,1' <=> 2 lignes : 1 de type z�ro et 1 de type 1. '0,5' pr�cise le param�tre intervalle
+#3 Dictionnaires pour rï¿½aliser toutes les lignes MAPINFO
+#Ce dictionnaire indique le nombre lignes et leur type. Ex '26': '0,1' <=> 2 lignes : 1 de type zï¿½ro et 1 de type 1. '0,5' prï¿½cise le paramï¿½tre intervalle
 tLineCompositeV2 = {'26':('0,1','0,5'),'39':('0,1','0,10'),'40':('0,1','0,10'),'41':('0,1','0,10'),'42':('0,1','0,15'),'43':('0,1','0,20'),'44':('0,1','0,25'),
                     '45':('0,1','0,5'),
                     '59':('2','0'),'63':('0,0','-0.5,0.5'),'64':('0,0,0','-1,0,1'),'68':('0,0','-0.5,0.5'),'73':('0,0,0','-1,0,1'),
@@ -49,17 +49,17 @@ tLineCompositeV2 = {'26':('0,1','0,5'),'39':('0,1','0,10'),'40':('0,1','0,10'),'
                     '101':('0,1,0','-0.5,3,0.5'), '106':('0,1','0,10'), '107':('0,1','0,5')
                     }
 
-#Ce dictionnaire indique le style d'une ligne, la taille et la couleur. (fixe : '2.0' ou interpr�t�e taille ligne '%')
-# -1 indique toutes les lignes trait�es � l'identique
+#Ce dictionnaire indique le style d'une ligne, la taille et la couleur. (fixe : '2.0' ou interprï¿½tï¿½e taille ligne '%')
+# -1 indique toutes les lignes traitï¿½es ï¿½ l'identique
 tSubSymbLineCompositeV2 = {'26':('0','solid|%|%'),'39':('0','dash|%|%'), '40':('0','dash|%|%'),'41':('0','dash|%|%'),'42':('0','dash|%|%'), '43':('0','dash|%|%'), '44':('0','dash|%|%'),
                            '45':('0','solid|%|%'),
                            '59':('0','solid|%|%'),'73':('1','dash|2.26|%'), '68':('-1','dash|%|%'),
                            '81':('0','solid|%|0'),'82':('0','no|%|%'),'83':('0','dot|%|0'), '86':('0','solid|0.26|0'), '87':('0','solid|0.26|0'),'88':('0','solid|0.26|0'), '89':('0','solid|0.26|0'),
-                           '90':('0','no|%|%'), '91':('0','dot|%|0'), '98':('0','no|%|%'), 
+                           '90':('0','no|%|%'), '91':('0','dot|%|0'), '98':('0','no|%|%'),
                            '101':('0,2','solid|0.26|0,solid|0.26|0'),'106':('0','no|%|%'), '107':('0','dot|%|0')
                            }
 
-#Ce dictionnaire indique le marker pos� sur une ligne, la taille et la couleur (fixe : '2.0' ou proportionnelle taille ligne '%')
+#Ce dictionnaire indique le marker posï¿½ sur une ligne, la taille et la couleur (fixe : '2.0' ou proportionnelle taille ligne '%')
 tSubSymbSymbolCompositeV2 = {'26':('1','cross','%','%'),'39':('1','cross2','%','%'),'40':('1','cross','%','%'),'41':('1','circle','%','%'),'42':('1','circle','%','%'), '43':('1','circle','%','%'), '44':('1','circle','%','%'),
                              '45':('1','circle','0.52','%'),
                              '81':('1','circle','%','%'),'82':('1','circle','%','0'), '83':('1','circle','%','%'),'86':('1','rectangle','%','%'),'87':('1','rectangle','%','%'), '88':('1','rectangle','%','%'),
@@ -95,16 +95,16 @@ def Symbo2Vector(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nFor
     zDisplayGraphic = False
     HasDefautLayerStyle, URIDefautLayerStyle = DefautLayerStyle(self, zLayer.source())
     for i in range(len(tSymbo)):
-        sstring = NetStrInfos(tSymbo[i], False, True, False, False, ()) 
+        sstring = NetStrInfos(tSymbo[i], False, True, False, False, ())
         if sstring.upper().find("DISPLAY GRAPHIC")!=-1: zDisplayGraphic = True
         elif sstring.upper().find('GLOBAL')!=-1 and sstring.upper().find('DISPLAY GLOBAL')==-1:
-             if not HasDefautLayerStyle :            
+             if not HasDefautLayerStyle :
                 rendererV2 = zLayer.rendererV2()
-                symbols = rendererV2.symbols() 
+                symbols = rendererV2.symbols()
                 symbol = symbols[0]
                 astyle = sstring.split()
-                if zLayer.geometryType() == QGis.Point : zSymbol = MakeMARKERV2(zDisplayGraphic, zLayer, symbol, astyle) 
-                elif zLayer.geometryType() == QGis.Line : zSymbol = MakeLINEV2(zDisplayGraphic, zLayer, symbol, astyle)  
+                if zLayer.geometryType() == QGis.Point : zSymbol = MakeMARKERV2(zDisplayGraphic, zLayer, symbol, astyle)
+                elif zLayer.geometryType() == QGis.Line : zSymbol = MakeLINEV2(zDisplayGraphic, zLayer, symbol, astyle)
                 else: zSymbol = MakeBRUSHV2(zDisplayGraphic, zLayer, symbol, astyle, False)
         elif sstring.upper().find("ZOOM (")!=-1 and sstring.upper().find("VISIBILITY ZOOM (")==-1 and  sstring.upper().find("OFF")==-1 and not zForceZoom: FixeZOOM(sstring, zLayer, nSizeMap, nSizeMapUnits, 4, 1, 2, False)
         elif sstring.upper().find('ALPHA')!=-1: FixeALPHA(sstring, zLayer, zSymbol)
@@ -123,17 +123,17 @@ def SymboRaster(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zForceZoom):
     return
 
 #------------------------------------------
-# BLOC Fonction d�termination type ANATHEMA
+# BLOC Fonction dï¿½termination type ANATHEMA
 #------------------------------------------
 # FONCTION MUTUALISEE AVEC FOPENWOR.PY
 def ValueTypeAna(sInfosMap, iSymboLayer):
     nTypeAna = ""
     tSymboAna = sInfosMap.split("shade")
-    if len(tSymboAna)==0: tSymboAna = sInfosMap.split("SHADE") 
+    if len(tSymboAna)==0: tSymboAna = sInfosMap.split("SHADE")
     tInfosAna = tSymboAna[iSymboLayer].split("|")
     tTypeAna = tInfosAna[0].split(" ")
     #la position 3 contient la variable
-    #la position 4 ou 6 (si option ignore activ�e) le type d'analyse
+    #la position 4 ou 6 (si option ignore activï¿½e) le type d'analyse
     if tSymboAna[iSymboLayer].upper().find("IGNORE")!=-1: nTypeAna = str(tTypeAna[6])
     else: nTypeAna = str(tTypeAna[4].upper())
     return nTypeAna
@@ -141,14 +141,14 @@ def ValueTypeAna(sInfosMap, iSymboLayer):
 #--------------------------------------
 # BLOC Fonction Symbolisation ANATHEMA
 #--------------------------------------
-def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLayer, sInfosMap, zType, sSymboLayerFather, HasLabeller, zReproject, nForceUnitsMap, zLayerVisibility, zForceCRS, zForceZoom):    
-    if zReproject : 
+def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLayer, sInfosMap, zType, sSymboLayerFather, HasLabeller, zReproject, nForceUnitsMap, zLayerVisibility, zForceCRS, zForceZoom):
+    if zReproject :
        lInfosProj4 = zForceCRS.split("|")
        zProj4Dest = lInfosProj4[3]
     else :lInfosProj4 = zLayer.crs()
 
     tSymboAna = sInfosMap.split("shade")
-    if len(tSymboAna)==0: tSymboAna = sInfosMap.split("SHADE") 
+    if len(tSymboAna)==0: tSymboAna = sInfosMap.split("SHADE")
     tInfosAna = tSymboAna[iSymboLayer].split("|")
     tTypeAna = tInfosAna[0].split(" ")
     nTypeAna = ValueTypeAna(sInfosMap, iSymboLayer)
@@ -157,11 +157,12 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
     nLabelFieldName = NetStrInfos(tTypeAna[3], True, True, False, False, ())
     vprovider = zLayer.dataProvider()
     zCanvas = self.iface.mapCanvas()
+    zTransform = DefzTransform(zLayer, zProj4Dest)
 
     zIndexField = -1
     zFieldStr = nLabelFieldName
     fLayer = None
-    
+
     if nTypeAna == "PIE" or nTypeAna == "HALF" or nTypeAna == "BAR" or nTypeAna == "STACKED" :
        tFields = nLabelFieldName.split(",")
        zIndexField = 0
@@ -185,16 +186,16 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
           MakeAna.setSourceColorRamp(zRampe)
           MakeAna.setClassAttribute(nLabelFieldName)
           zRendererV2 = zLayer.rendererV2()
-             
+
           iAna, symbs = 0, {}
 
-          for i in range(1, len(tInfosAna)-1,1):   
+          for i in range(1, len(tInfosAna)-1,1):
                  zStr = NetStrInfos(str(tInfosAna[i]), False, False, False, False, ("\"", "'"))
 
-                 if zStr.upper().find("DEFAULT")==-1: 
+                 if zStr.upper().find("DEFAULT")==-1:
                     zStyles = zStr.split(" ")
                     j, zValue = 0, ""
-               
+
                     while (zStyles[j].upper()!="BRUSH") and (zStyles[j].upper()!="LINE") and (zStyles[j].upper()!="PEN") and (zStyles[j].upper()!="SYMBOL"):
                         zValue = zValue + " " + str(zStyles[j])
                         j+= 1
@@ -203,14 +204,14 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
                     if zValue !="":
                         symbs[iAna] = QgsSymbolV2.defaultSymbol(zLayer.geometryType())
-                        
-                        #normalement, avant d'attaquer le bloc de repr�sentation ( zIndex = -1 )
-                        #il serait pr�f�rable de tester la validit� de la valeur !!!
+
+                        #normalement, avant d'attaquer le bloc de reprï¿½sentation ( zIndex = -1 )
+                        #il serait prï¿½fï¿½rable de tester la validitï¿½ de la valeur !!!
                         zValue = str(zValue)
                         zTempoD = zValue.split(":")
 
-                        if zLayer.geometryType()== QGis.Point : MakeMARKERV2(False, MakeAna, symbs[iAna], zStr.split()) 
-                        elif zLayer.geometryType() == QGis.Line : MakeLINEV2(False, MakeAna, symbs[iAna], zStr.split()) 
+                        if zLayer.geometryType()== QGis.Point : MakeMARKERV2(False, MakeAna, symbs[iAna], zStr.split())
+                        elif zLayer.geometryType() == QGis.Line : MakeLINEV2(False, MakeAna, symbs[iAna], zStr.split())
                         else : MakeBRUSHV2(False, MakeAna, symbs[iAna], zStr.split(), True)
 
                         if nTypeAna == "VALUES":
@@ -218,18 +219,18 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                            MakeAna.addCategory(symbs[iAna])
                         else:
                            MakeAna.addClass(symbs[iAna])
-                           MakeAna.updateRangeLabel(0, str(float(zTempoD[0]))+ " - "+str(float(zTempoD[1]))) 
-                           MakeAna.updateRangeLowerValue(0,float(zTempoD[0])) 
-                           MakeAna.updateRangeUpperValue(0,float(zTempoD[1])) 
+                           MakeAna.updateRangeLabel(0, str(float(zTempoD[0]))+ " - "+str(float(zTempoD[1])))
+                           MakeAna.updateRangeLowerValue(0,float(zTempoD[0]))
+                           MakeAna.updateRangeUpperValue(0,float(zTempoD[1]))
 
-                        iAna+= 1                       
+                        iAna+= 1
                  else:
                     break
 
           zLayer.setRendererV2(MakeAna)
 
           QgsMapLayerRegistry.instance().addMapLayers([zLayer])
-          MakeVisibility(self, zLayer, zLayerVisibility) 
+          MakeVisibility(self, zLayer, zLayerVisibility)
           self.iface.legendInterface().refreshLayerSymbology(zLayer)
           fLayer = zLayer
 
@@ -245,11 +246,11 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             feat = QgsFeature()
 
 
-            zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, zLayer) 
+            zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, zLayer)
             AnaLayer = QgsVectorLayer("Point", QString.fromLocal8Bit(CleanName(zLayer.name())) + " (SymbProp" + " : " + nLabelFieldName + ")", "memory")
             DefineLayerProj(self, zLayer, AnaLayer)
             RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
- 
+
             prCentro = AnaLayer.dataProvider()
             ret = prCentro.addAttributes( [ QgsField("Id", QVariant.Int), QgsField("Valeur", QVariant.Double)])
             AnaLayer.updateFieldMap()
@@ -263,13 +264,13 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             zIndex = FixeIndex(0, txInfos, "BY")
             if zIndex!=-1:  zMethode = NetStrInfos(str(txInfos[zIndex]), False, False, False, False, ("'","\""))
             else: zMethode = "CONST"
-            
+
             tempo = str(tInfos[6])
             tInfos = tempo.split(":")
             tempo = str(tInfos[0])
             arefvalue = MakeValue(tempo)
             if arefvalue == 0.0 : arefvalue = 1.0
-            arefsize = float(tInfos[1]) 
+            arefsize = float(tInfos[1])
             avalue = float(arefsize/arefvalue)
 
             #Valeurs progression barre
@@ -284,36 +285,36 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                   oldVal = float(attrs[zIndexField].toDouble()[0])
                   valueCalc = oldVal
                   valueCalc = valueCalc / arefvalue
-                  
-                  #Progression de l'analyse  
+
+                  #Progression de l'analyse
                   zPercent = int(100 * float(float(Featcounter+1)/NbFeat))
                   self.progressBarL.setValue(zPercent)
                   Featcounter+= 1
-  
+
                   fet.setGeometry(QgsGeometry(geom.centroid()))
                   fet.addAttribute(0, QVariant(zID))
                   fet.addAttribute(1, QVariant(valueCalc))
                   prCentro.addFeatures( [ fet ] )
                   AnaLayer.updateExtents()
                   zID+= 1
-            
+
             zCentroideLayer = QgsMapLayerRegistry.instance().addMapLayers([AnaLayer])[0]
             symbols = AnaLayer.rendererV2().symbols()
             symbol = symbols[0]
 
             tInfos = tInfosAna[0].split(" ")
 
-            MakeMARKERV2(False, zLayer, symbol, tInfos) 
+            MakeMARKERV2(False, zLayer, symbol, tInfos)
             zField = QString("Valeur")
             AnaLayer.rendererV2().setSizeScaleField(zField)
-              
+
             self.iface.legendInterface().refreshLayerSymbology(zCentroideLayer)
-            fLayer = zCentroideLayer            
+            fLayer = zCentroideLayer
 
 
 
 
-    
+
        elif nTypeAna == "DENSITY":
             xTypeAna = tInfosAna[0].upper()
             xTypeAna = xTypeAna.split(" ")
@@ -321,7 +322,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             nSize = 0.0
             zIndex = FixeIndex(0,xTypeAna, "WIDTH")
-            if zIndex != -1: nSize = AdapteRatioMapInfo(float(tTypeAna[zIndex]), False, False) 
+            if zIndex != -1: nSize = AdapteRatioMapInfo(float(tTypeAna[zIndex]), False, False)
 
             nType = "rectangle"
             if tTypeAna[zIndex-2]=="circle":  nType = "circle"
@@ -344,8 +345,8 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             zIndex = FixeIndex(0,xTypeAna, "COLOR")
             if zIndex != -1: nFillColor = tTypeAna[zIndex]
 
-            zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, zLayer) 
-            inLayer = QgsVectorLayer(unicode(zLayer.source()),  unicode(CleanName(zLayer.name())),  unicode(zLayer.dataProvider().name()))             
+            zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, zLayer)
+            inLayer = QgsVectorLayer(unicode(zLayer.source()),  unicode(CleanName(zLayer.name())),  unicode(zLayer.dataProvider().name()))
             DefineLayerProj(self, zLayer, inLayer)
             RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
             fLayer = randomizePoints(self, inLayer, minimum, design, value, tmpMax, nSize, nRatio, nFillColor, nType)
@@ -356,7 +357,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
        elif nTypeAna == "PIE" or nTypeAna =="HALF":
             rb=QgsRubberBand(self.iface.mapCanvas(),True)
             rb.reset()
-            
+
             xTypeAna = tInfosAna[0].upper()
             xTypeAna = xTypeAna.split(" ")
             tInfos = tInfosAna[0].split(" ")
@@ -375,7 +376,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             zUnits = NetStrInfos( str(xTypeAna[zIndex]), False, False, True, False, ("\"", "'"))
             zIndex = FixeIndex(0,xTypeAna, "SIZE")
             zSize = FixeSize(float(xTypeAna[zIndex]), zDpi, zUnits)
-            
+
             if zFixed == -1:
                zIndex = FixeIndex(0,xTypeAna, "VALUE")
                zValue = float(xTypeAna[zIndex])
@@ -383,7 +384,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                zIndex = FixeIndex(0,xTypeAna, "BY")
                if zIndex!=-1:  zMethode = NetStrInfos( str(xTypeAna[zIndex]), False, False, True, False, ("\"", "'"))
                else: zMethode = "CONST"
-            else : zMethode = "FIXED"      
+            else : zMethode = "FIXED"
 
             xTypeAna = tInfosAna[2].upper().split(" ")
             zIndex = FixeIndex(0,xTypeAna, "POSITION")
@@ -392,19 +393,19 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
 
             if nTypeAna =="HALF":
-                if zSens == 1 : #sens trigonom�trique
-                    if zLeftRightCenterPos == "LEFT" : zAngle = 180.0 
-                    elif zLeftRightCenterPos == "RIGHT" : zAngle = -180.0 
+                if zSens == 1 : #sens trigonomï¿½trique
+                    if zLeftRightCenterPos == "LEFT" : zAngle = 180.0
+                    elif zLeftRightCenterPos == "RIGHT" : zAngle = -180.0
                     else :
-                        if zAboveBelowCenterPos == "ABOVE" or zAboveBelowCenterPos == "CENTER" : zAngle = 0.0 
+                        if zAboveBelowCenterPos == "ABOVE" or zAboveBelowCenterPos == "CENTER" : zAngle = 0.0
                         else : zAngle = 360.0
                 else: #sens horaire
-                    if zLeftRightCenterPos == "LEFT" : zAngle = 540.0 
-                    elif zLeftRightCenterPos == "RIGHT" : zAngle = 180.0 
+                    if zLeftRightCenterPos == "LEFT" : zAngle = 540.0
+                    elif zLeftRightCenterPos == "RIGHT" : zAngle = 180.0
                     else :
-                        if zAboveBelowCenterPos == "ABOVE" or zAboveBelowCenterPos == "CENTER" : zAngle = 360.0 
-                        else : zAngle = 0.0 
-                        
+                        if zAboveBelowCenterPos == "ABOVE" or zAboveBelowCenterPos == "CENTER" : zAngle = 360.0
+                        else : zAngle = 0.0
+
             if zAboveBelowCenterPos == "ABOVE" : zPondCoordY = 1.00005
             elif zAboveBelowCenterPos == "BELOW"  : zPondCoordY = 0.99995
             else : zPondCoordY = 1.0
@@ -418,10 +419,10 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             for k in range(len(tInfosAna)):
                 xTypeAna = tInfosAna[k].upper()
                 if xTypeAna.find("BRUSH (")!=-1 : nBrushStyle.append(xTypeAna)
-            
+
             First = True
             zSommeMaxAttr = 0
-            
+
             for k in range(nbFields):
                 zField = NetStrInfos(tAttributs[k], True, True, False, False, ())
                 zIndexField = int(vprovider.fieldNameIndex(zField))
@@ -434,22 +435,22 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 tmpMin, tmpMax = float(MyList[0]), float(MyList[1])
                 """
                 if First:
-		   nMin, nMax = tmpMin, tmpMax
-     	  	   First = False
-		else:
-	           if tmpMin < nMin : nMin = tmpMin
-	           if tmpMax > nMax : nMax = tmpMax
-                  
+                    nMin, nMax = tmpMin, tmpMax
+                    First = False
+                else:
+                    if tmpMin < nMin : nMin = tmpMin
+                    if tmpMax > nMax : nMax = tmpMax
+
                 if zMethode == "LOG":
                    if tmpMin > 0 : tmpMin = math.log(tmpMin)
                    if tmpMax > 0 : tmpMax = math.log(tmpMax)
                 elif zMethode == "SQRT":
                    if tmpMin > 0 : tmpMin = math.sqrt(tmpMin)
                    if tmpMax > 0 : tmpMax = math.sqrt(tmpMax)
-                   
-                zSommeMaxAttr = zSommeMaxAttr + tmpMax 
-                nMinValues.append( tmpMin ) 
-                nMaxValues.append( tmpMax ) 
+
+                zSommeMaxAttr = zSommeMaxAttr + tmpMax
+                nMinValues.append( tmpMin )
+                nMaxValues.append( tmpMax )
 
             zID = 0
             provider = zLayer.dataProvider()
@@ -487,12 +488,12 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             while provider.nextFeature(feat):
                   geom = feat.geometry()
                   attrs = feat.attributeMap()
-                  MyCenter = geom.centroid().asPoint() 
+                  MyCenter = geom.centroid().asPoint()
                   refX, refY = float(MyCenter.x()), float(MyCenter.y()*zPondCoordY)
                   MyCenter = QgsPoint(refX, refY)
-   
+
                   SommeValueAtt, SommeValueAttM = 0, 0
-                  
+
                   for iAtt in range(len(nLayers)):
                       IdField = int(nLayers[iAtt])
                       zValueAttr = attrs[IdField].toDouble()[0]
@@ -503,7 +504,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                          if zValueAttr > 0 : zValueAttrM = math.sqrt(zValueAttr)
                       SommeValueAtt = SommeValueAtt + zValueAttr
                       SommeValueAttM = SommeValueAttM + zValueAttrM
-                      
+
                       if iAtt==0:  zMaxAttr = zValueAttr
                       else:
                          if zValueAttr > zMaxAttr : zMaxAttr = zValueAttr
@@ -511,21 +512,21 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                   if zFixed > -1: zSizeCircle = int(zSize) * 2.5
                   else: zSizeCircle = int(zSize * (SommeValueAttM / zSommeMaxAttr)) * 2.5
 
-                       
+
                   Xcoord = float(refX + zSizeCircle)
                   Ycoord = float(refY + zSizeCircle)
                   SizeCirlePoint = QgsPoint( Xcoord, Ycoord)
                   r = sqrt(MyCenter.sqrDist(SizeCirlePoint))
 
                   if zReproject: zUnits = int(self.iface.mapCanvas().mapRenderer().destinationCrs().mapUnits())
-                  
+
                   zPosition = zStart
                   First = True
-                  #Il faut calculer la r�partition entre les attributs (ind�pendant de la m�thode -> taille cercle)
-                  for iAtt in range(len(nLayers)): 
+                  #Il faut calculer la rï¿½partition entre les attributs (indï¿½pendant de la mï¿½thode -> taille cercle)
+                  for iAtt in range(len(nLayers)):
                       IdField = int(nLayers[iAtt])
                       zValueAttr = attrs[IdField].toDouble()[0]
-                      if zValueAttr != 0 :                       
+                      if zValueAttr != 0 :
                           zRatio = float(zValueAttr/SommeValueAtt)
                           zAngle = zPosition + (zSens * (DimObj * zRatio))
                           rb.addPoint(MyCenter)
@@ -533,7 +534,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                           if zPoints < 1: zPoints = 1
                           zPasAngle = zSens * (float((zAngle - zPosition) / zPoints))
 
-                          if zSens == 1: #sens trigonom�trique
+                          if zSens == 1: #sens trigonomï¿½trique
                              while zPosition < zAngle :
                                    Xcoord = float(refX+r*cos(zPosition))
                                    Ycoord = float(refY+r*sin(zPosition))
@@ -542,12 +543,12 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                                    zPosition = zPosition + (zSens * zPasAngle)
                              zAdjust = abs((zPosition - zAngle)/2)
                              zPosition = zPosition - (zSens * zAdjust)
-    
-                             if iAtt == 0 : 
+
+                             if iAtt == 0 :
                                  Xcoord = float(refX+r*cos(zPosition))
                                  Ycoord = float(refY+r*sin(zPosition))
                                  rb.addPoint(QgsPoint(Xcoord, Ycoord))
-                         
+
                           else: #sens horaire
                              while zPosition > zAngle :
                                    Xcoord = float(refX+r*cos(zPosition))
@@ -558,7 +559,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                              zAdjust = abs((zPosition - zAngle)/2)
                              zPosition = zPosition - (zSens * zAdjust)
 
-                             if iAtt == 0 : 
+                             if iAtt == 0 :
                                  Xcoord = float(refX+r*cos(zPosition))
                                  Ycoord = float(refY+r*sin(zPosition))
                                  rb.addPoint(QgsPoint(Xcoord, Ycoord))
@@ -578,19 +579,19 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
                       else: g = QgsGeometry()
 
-                      #Progression de l'analyse  
+                      #Progression de l'analyse
                       zPercent = int(100 * float(float(Featcounter+1)/NbFeat))
                       self.progressBarL.setValue(zPercent)
                       Featcounter+= 1
-                      
+
                       fet.setGeometry(g)
                       fet.addAttribute(0, QVariant(zID))
                       fet.addAttribute(1, QVariant(zValueAttr))
-                      fet.addAttribute(2, QVariant(tAttributs[iAtt]))    
+                      fet.addAttribute(2, QVariant(tAttributs[iAtt]))
                       prCentro.addFeatures( [ fet ] )
                       AnaLayer.updateExtents()
                       zID+= 1
-       
+
             rb.reset()
             QgsMapLayerRegistry.instance().addMapLayers([AnaLayer])
 
@@ -620,7 +621,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             rb=QgsRubberBand(self.iface.mapCanvas(),True)
             rb.reset()
-            
+
             xTypeAna = tInfosAna[0].upper().split(" ")
             tInfos = tInfosAna[0].split(" ")
             zIndex = FixeIndex(0,xTypeAna, "WITH")
@@ -628,7 +629,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             zFixed = FixeIndex(0,xTypeAna, "FIXED")
 
             xTypeAna = tInfosAna[1].upper()
-            xTypeAna = xTypeAna.split(" ")                
+            xTypeAna = xTypeAna.split(" ")
             zIndex = FixeIndex(0,xTypeAna, "UNITS")
             zUnits = NetStrInfos( str(xTypeAna[zIndex]), False, False, True, False, ("\"", "'"))
             zIndex = FixeIndex(0,xTypeAna, "SIZE")
@@ -638,7 +639,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             xTypeAna = xTypeAna.split(" ")
             zIndex = FixeIndex(0,xTypeAna, "WIDTH")
             zSizeBase = FixeSize(float(xTypeAna[zIndex]), zDpi, zUnits)
-    
+
             if zFixed == -1:
                xTypeAna = tInfosAna[1].upper()
                xTypeAna = xTypeAna.split(" ")
@@ -655,7 +656,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             zIndex = FixeIndex(0,xTypeAna, "POSITION")
             zLeftRightCenterPos = str(xTypeAna[zIndex]) if zIndex != -1 else "CENTER"
             zAboveBelowCenterPos = str(xTypeAna[zIndex+1]) if zIndex != -1 else "CENTER"
-            
+
             zSignCoordX = -1 if zLeftRightCenterPos == "LEFT" or zLeftRightCenterPos == "CENTER" else 1
             zInverse = -1 if (zLeftRightCenterPos == "LEFT" or zLeftRightCenterPos == "RIGHT") else 1
             if zAboveBelowCenterPos == "ABOVE" : zPondCoordY = 1.005
@@ -672,7 +673,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 if xTypeAna.find("BRUSH (")!=-1 : nBrushStyle.append(xTypeAna)
 
             First, zSommeMaxAttr = True, 0
-            
+
             for k in range(nbFields):
                 zField = NetStrInfos(tAttributs[k], True, True, False, False, ())
                 zIndexField = int(vprovider.fieldNameIndex(zField))
@@ -685,19 +686,19 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 tmpMin, tmpMax = float(MyList[0]), float(MyList[1])
                 """
                 if First:
-		   nMin, nMax, First = tmpMin, tmpMax, False
-		else:
-	           if tmpMin < nMin : nMin = tmpMin
-	           if tmpMax > nMax : nMax = tmpMax
+                    nMin, nMax, First = tmpMin, tmpMax, False
+                else:
+                    if tmpMin < nMin : nMin = tmpMin
+                    if tmpMax > nMax : nMax = tmpMax
                 if zMethode == "LOG":
                    if tmpMin > 0 : tmpMin = math.log(tmpMin)
                    if tmpMax > 0 : tmpMax = math.log(tmpMax)
                 elif zMethode == "SQRT":
                    if tmpMin > 0 : tmpMin = math.sqrt(tmpMin)
                    if tmpMax > 0 : tmpMax = math.sqrt(tmpMax)
-                zSommeMaxAttr = zSommeMaxAttr + tmpMax 
-                nMinValues.append( tmpMin ) 
-                nMaxValues.append( tmpMax ) 
+                zSommeMaxAttr = zSommeMaxAttr + tmpMax
+                nMinValues.append( tmpMin )
+                nMaxValues.append( tmpMax )
 
             zID = 0
             provider = zLayer.dataProvider()
@@ -713,7 +714,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             prCentro = AnaLayer.dataProvider()
             ret = prCentro.addAttributes( [ QgsField("Id", QVariant.Int)])
             ret = prCentro.addAttributes( [ QgsField("Valeur", QVariant.Double)])
-            ret = prCentro.addAttributes( [ QgsField("Categorie", QVariant.String)])    
+            ret = prCentro.addAttributes( [ QgsField("Categorie", QVariant.String)])
             AnaLayer.updateFieldMap()
 
             fet = QgsFeature()
@@ -724,16 +725,16 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             NbFeat = provider.featureCount()
             if NbFeat == 0 : NbFeat = 1
             self.progressBarL.setValue(0)
-            Featcounter = 1            
+            Featcounter = 1
             zSizeBase = zSizeBase * 100
             zPointDep = zSignCoordX * float(zSizeBase/2)
 
             while provider.nextFeature(feat):
                   geom = feat.geometry()
                   attrs = feat.attributeMap()
-                  
+
                   SommeValueAtt, SommeValueAttM = 0, 0
-                  
+
                   for iAtt in range(len(nLayers)):
                       IdField = int(nLayers[iAtt])
                       zValueAttr = attrs[IdField].toDouble()[0]
@@ -747,39 +748,39 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                       if iAtt==0: zMaxAttr = zValueAttr
                       else:
                          if zValueAttr > zMaxAttr : zMaxAttr = zValueAttr
-                   
+
                   if zFixed > -1:  zSizeBar = zSize * 100
                   else:
                      zSizeBar = float(zSize * (SommeValueAttM / zSommeMaxAttr))
-                     if zSizeBar < 5000 : zSizeBar = zSizeBar * 100 
+                     if zSizeBar < 5000 : zSizeBar = zSizeBar * 100
 
-                  #Il faut calculer la r�partition entre les attributs (ind�pendant de la m�thode -> taille histogramme)
+                  #Il faut calculer la rï¿½partition entre les attributs (indï¿½pendant de la mï¿½thode -> taille histogramme)
                   LastHauteur = 0
                   zSaveSizeBase = zSizeBase
-                  
-                  for iAtt in range(len(nLayers)): 
+
+                  for iAtt in range(len(nLayers)):
                       IdField = int(nLayers[iAtt])
                       zValueAttr = attrs[IdField].toDouble()[0]
-                      if zValueAttr != 0 : 
+                      if zValueAttr != 0 :
                          zHauteur =  round(((zValueAttr/SommeValueAtt)* zSizeBar),2)
-                         
+
                          if nTypeAna == "BAR" :
                             if zInverse == -1 :
                                Xcoord = float(geom.centroid().asPoint().x())+ zPointDep
                                Ycoord = zPondCoordY * float(geom.centroid().asPoint().y())+LastHauteur
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Xcoord = float(Xcoord + (zSignCoordX * zHauteur))
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Ycoord = float(Ycoord+zSizeBase)
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
-                               Xcoord = float(Xcoord-(zSignCoordX * zHauteur)) 
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+                               Xcoord = float(Xcoord-(zSignCoordX * zHauteur))
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                LastHauteur = LastHauteur + zSizeBase
@@ -787,19 +788,19 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                             else :
                                Xcoord = float(geom.centroid().asPoint().x()+zPointDep+(iAtt * zSizeBase))
                                Ycoord = zPondCoordY * float(geom.centroid().asPoint().y())
-                               MyPoint = zTransform.transform(QgsPoint( Xcoord, Ycoord)) 
+                               MyPoint = zTransform.transform(QgsPoint( Xcoord, Ycoord))
                                rb.addPoint(MyPoint)
 
                                Ycoord = float(Ycoord+zHauteur)
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Xcoord = float(Xcoord+(zSignCoordX * zSizeBase))
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Ycoord =  float(Ycoord-zHauteur)
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                LastHauteur = LastHauteur + zHauteur
@@ -808,58 +809,58 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                             if zInverse == -1 :
                                Xcoord = float(geom.centroid().asPoint().x())+ zPointDep + (zSignCoordX * LastHauteur)
                                Ycoord = zPondCoordY * float(geom.centroid().asPoint().y())
-                               MyPoint = zTransform.transform(QgsPoint( Xcoord, Ycoord)) 
+                               MyPoint = zTransform.transform(QgsPoint( Xcoord, Ycoord))
                                rb.addPoint(MyPoint)
-                                
-                               Xcoord = float(Xcoord + (zSignCoordX *zHauteur)) 
-                               MyPoint = QgsPoint( Xcoord, Ycoord)  
+
+                               Xcoord = float(Xcoord + (zSignCoordX *zHauteur))
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Ycoord = float(Ycoord+zSizeBase)
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
-                               Xcoord =  float(Xcoord - (zSignCoordX *zHauteur))                          
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               Xcoord =  float(Xcoord - (zSignCoordX *zHauteur))
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                             else:
 
                                Xcoord = float(geom.centroid().asPoint().x()+ zPointDep)
                                Ycoord = zPondCoordY * float(geom.centroid().asPoint().y()+LastHauteur)
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Ycoord = float(Ycoord+zHauteur)
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Xcoord = float(Xcoord+zSizeBase)
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
 
                                Ycoord = float(Ycoord-zHauteur)
-                               MyPoint = QgsPoint( Xcoord, Ycoord) 
+                               MyPoint = QgsPoint( Xcoord, Ycoord)
                                rb.addPoint(MyPoint)
-                                              
+
                             LastHauteur = LastHauteur + zHauteur
-                      
-                         coords = []    
+
+                         coords = []
                          [coords.append(rb.getPoint(0,ki)) for ki in range(rb.numberOfVertices())]
                          g=QgsGeometry().fromPolygon([coords])
                          rb.reset()
-                         
+
                       else: g = QgsGeometry()
 
                       fet.setGeometry(g)
                       fet.addAttribute(0, QVariant(zID))
                       fet.addAttribute(1, QVariant(zValueAttr))
-                      fet.addAttribute(2, QVariant(tAttributs[iAtt]))    
+                      fet.addAttribute(2, QVariant(tAttributs[iAtt]))
                       prCentro.addFeatures( [ fet ] )
                       AnaLayer.updateExtents()
                       zID+= 1
-                   
-                  #Progression de l'analyse  
+
+                  #Progression de l'analyse
                   zPercent = int(100 * float(float(Featcounter+1)/NbFeat))
                   self.progressBarL.setValue(zPercent)
                   Featcounter+= 1
@@ -882,24 +883,24 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 MakeAna.addCategory(symbs[iAtt])
 
             AnaLayer.setRendererV2(MakeAna)
-            
+
             self.iface.legendInterface().refreshLayerSymbology(AnaLayer)
             QApplication.restoreOverrideCursor()
-            fLayer = AnaLayer            
-          
+            fLayer = AnaLayer
+
        else:
 
-            Symbo2Vector(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits,zType, nForceUnitsMap, zReproject, zForceCRS, zForceZoom)   
-            fLayer = zLayer   
+            Symbo2Vector(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits,zType, nForceUnitsMap, zReproject, zForceCRS, zForceZoom)
+            fLayer = zLayer
     else:
-       msg = "L'attribut : <b>" + zFieldStr + "</b><br>n'a pas �t� trouv� dans le fichier <b>" + str(zLayer.name()) + "</b> en entr�e.<br>Analyse <b>" + str(tTypeAnaLib[nTypeAna]) + "</b> non restituable."
+       msg = "L'attribut : <b>" + zFieldStr + "</b><br>n'a pas ï¿½tï¿½ trouvï¿½ dans le fichier <b>" + str(zLayer.name()) + "</b> en entrï¿½e.<br>Analyse <b>" + str(tTypeAnaLib[nTypeAna]) + "</b> non restituable."
        QMessageBox.information(None,"Erreur de structure ", msg)
 
     return fLayer
 
 #----------------------------------------------
 # FONCTION CREATION INDEX SPATIAL
-# Utilis�e pour l'analyse par densit� de points
+# Utilisï¿½e pour l'analyse par densitï¿½ de points
 #----------------------------------------------
 def createIndex( provider ):
     feat, index = QgsFeature(), QgsSpatialIndex()
@@ -911,11 +912,11 @@ def createIndex( provider ):
 #------------------------------
 # FONCTIONS RASTER MIG
 #------------------------------
-def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nSizeMap, nSizeMapUnits, sInfosMap, vType, nForceUnitsMap):    
+def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nSizeMap, nSizeMapUnits, sInfosMap, vType, nForceUnitsMap):
     vprovider = zLayer.dataProvider()
     zIndexField = vprovider.fieldNameIndex( nLabelFieldName )
     zLayer.setLayerName(zLayer.name() + " (" +tTypeAnaLib["COLORC"]+ " : " + nLabelFieldName + ")")
-  
+
     QgsMapLayerRegistry.instance().addMapLayers([zLayer])
     self.iface.legendInterface().refreshLayerSymbology(zLayer)
     legendTree = self.iface.mainWindow().findChild(QDockWidget, "Legend").findChild(QTreeWidget)
@@ -934,7 +935,7 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
     zCellSizeY = float(abs(zExt.yMaximum() - zExt.yMinimum())/zNbCellY)
 
     zCommand = "gdal_grid -zfield " + nLabelFieldName + " -l Us_rain -a invdist:power=4.0:smothing=3.0:radius1=0.0:radius2=0.0:angle=0.0:max_points=10:min_points=5:nodata=0.0 -of GTiff"
-    zCommand = zCommand + " " + zORURL + " " + zURL 
+    zCommand = zCommand + " " + zORURL + " " + zURL
     os.system(zCommand)
 
     #puis symbolisation : Pseudo couleur
@@ -945,7 +946,7 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
         QGISVersionID = 0
         try: QGISVersionID = int(unicode( QGis.QGIS_VERSION_INT ))
         except: QGISVersionID = int(unicode( QGis.qgisVersion )[ 0 ])
-    
+
         if QGISVersionID <= 10800:
            zLayerMIG.setDrawingStyle(QgsRasterLayer.SingleBandPseudoColor)
            zLayerMIG.setColorShadingAlgorithm(QgsRasterLayer.PseudoColorShader)
@@ -953,11 +954,11 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
         else:
            myRampItemList = []
            myTransparencyList = []
-           
+
            zMin = zLayerMIG.dataProvider().minimumValue(1)
            zMax = zLayerMIG.dataProvider().maximumValue(1)
            zInt = (zMax - zMin)/4
-           
+
            myRampItem = QgsColorRampShader.ColorRampItem(zMin, QColor(0,0,255), str(zMin))
            myRampItemList.append(myRampItem)
            myPixel = QgsRasterTransparency.TransparentSingleValuePixel()
@@ -980,7 +981,7 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
            myPixel.min = zInt
            myPixel.max = 2*zInt
            myPixel.percentTransparent = 50
-           myTransparencyList.append(myPixel) 
+           myTransparencyList.append(myPixel)
 
            myRampItem = QgsColorRampShader.ColorRampItem(3*zInt, QColor(0,150,75), str(3*zInt))
            myRampItemList.append(myRampItem)
@@ -988,8 +989,8 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
            myPixel.min = 2*zInt
            myPixel.max = 3*zInt
            myPixel.percentTransparent = 50
-           myTransparencyList.append(myPixel)            
-           
+           myTransparencyList.append(myPixel)
+
            myRampItem = QgsColorRampShader.ColorRampItem(zMax, QColor(0,200,0), str(zMax))
            myRampItemList.append(myRampItem)
            myPixel = QgsRasterTransparency.TransparentSingleValuePixel()
@@ -1011,17 +1012,17 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
            myTransparency = QgsRasterTransparency()
            myTransparency.setTransparentSingleValuePixelList(myTransparencyList)
            myRenderer.setRasterTransparency(myTransparency)
-           
-           
+
+
         self.iface.legendInterface().refreshLayerSymbology(zLayerMIG)
         self.iface.mapCanvas().refresh()
 
-        
+
     return
 
 #-----------------------------------
 #-----------------------------------
-# FONCTIONS MUTUALISEES 
+# FONCTIONS MUTUALISEES
 #-----------------------------------
 #-----------------------------------
 
@@ -1030,8 +1031,8 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
 #==================================================
 def ChangeSETTINGS(self, zLayer):
     settings = QSettings()
-    oldProjectionSetting = settings.value("Projections/defaultBehaviour") 
-    oldProjectionCRSValue = settings.value("Projections/layerDefaultCrs") 
+    oldProjectionSetting = settings.value("Projections/defaultBehaviour")
+    oldProjectionCRSValue = settings.value("Projections/layerDefaultCrs")
     settings.setValue("Projections/defaultBehaviour", "useGlobal")
     if zLayer == None : zProjEPSG = str(self.iface.mapCanvas().mapRenderer().destinationCrs().authid())
     else : zProjEPSG = str(zLayer.crs().authid())
@@ -1040,7 +1041,7 @@ def ChangeSETTINGS(self, zLayer):
     return oldProjectionSetting, oldProjectionCRSValue
 
 def DefineLayerProj(self, zLayer, CibleLayer):
-    if zLayer == None : CibleLayer.setCrs(self.iface.mapCanvas().mapRenderer().destinationCrs()) 
+    if zLayer == None : CibleLayer.setCrs(self.iface.mapCanvas().mapRenderer().destinationCrs())
     else : CibleLayer.setCrs(zLayer.crs())
     CibleLayer.updateFieldMap()
 
@@ -1049,7 +1050,7 @@ def RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue):
     if zProjectionSetting!= "" : settings.setValue("Projections/defaultBehaviour", zProjectionSetting)
     if zProjectionCRSValue!= "" : settings.setValue("Projections/layerDefaultCrs", zProjectionCRSValue)
 
-    
+
 #----------------------------------
 # FONCTION ETIQUETTES / ANNOTATIONS
 #----------------------------------
@@ -1062,9 +1063,9 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
     zCanvas = self.iface.mapCanvas()
 
     for i in range(len(tSymbo)):
-        sstring = NetStrInfos(tSymbo[i], True, True, False, False, ()) 
+        sstring = NetStrInfos(tSymbo[i], True, True, False, False, ())
         x = sstring.upper()
-        
+
         if x.startswith('ACTIVATE'):
             break
 
@@ -1072,12 +1073,12 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
             nLabelFieldName = NetStrInfos(sstring, True, True, False, False, ("WITH", "With"))
             if nLabelFieldName.find("Proper$")!=-1:
                nLabelFieldName = NetStrInfos(nLabelFieldName,True, True, False, False, ("PROPER$", "Proper$","(",")"))
-               
+
 
         elif x.find('LABEL ')!=-1:
             axstyle = x.split()
             zFontAlignement = str(axstyle[4])
-            atempostr = NetStrInfos(axstyle[5], False, False, True, False, ()) 
+            atempostr = NetStrInfos(axstyle[5], False, False, True, False, ())
             if atempostr!="FONT": zFontAlignement = zFontAlignement + str(axstyle[5])
             aFontProperties = MakePropertiesFONT(6, str(axstyle[6]), axstyle)
             aFontProperties = NetStrInfos(aFontProperties, False, False, False, False, ("(", ")"))
@@ -1090,11 +1091,11 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                zFontColor = long(aFont[len(aFont)-2]) #InvRGB(long(aFont[len(aFont)-2]))
                zBackColor = long(aFont[len(aFont)-1]) #InvRGB(long(aFont[len(aFont)-1]))
             else:
-               zFontColor = long(aFont[len(aFont)-1]) #InvRGB(long(aFont[len(aFont)-1]))  
+               zFontColor = long(aFont[len(aFont)-1]) #InvRGB(long(aFont[len(aFont)-1]))
             zFontSize = int(aFont[2])
             zFontCarac = ValCarac(int(aFont[1]),0)
 
-            zFontBold = False                              
+            zFontBold = False
             zFontUnderline = False
             zFontItalic = False
             if tStyleLabel.has_key(zFontCarac):
@@ -1102,31 +1103,31 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                zFontBold = TheStyle[0]
                zFontUnderline = TheStyle[1]
                zFontItalic = TheStyle[2]
-              
+
             zFont = NetStrInfos(aFont[0], True, True, False, True, ("\"", "'"))
 
-            
+
         elif x.find('PARALLEL')!=-1:
-           axstyle = x.split() 
+           axstyle = x.split()
            aEtiquette = NetStrInfos(axstyle[3], True, True, True, False, ())
            tempoTest = False
 
-           
+
            if aEtiquette == "ON" and nLabelFieldName!="":
               zIndexField = vprovider.fieldNameIndex(nLabelFieldName)
-           
+
               if zIndexField == -1 :
                  nLabelFieldName = CleanExp(zLayer, nLabelFieldName)
-                 zExpression = QgsExpression(nLabelFieldName) 
+                 zExpression = QgsExpression(nLabelFieldName)
                  zIndexField = 0
                  tempoTest = True
- 
+
               isFontBold = "true" if zFontBold else "false"
               isFontUnderline = "true" if zFontUnderline else "false"
               isFontItalic = "true" if zFontItalic else "false"
 
               zLayer.setUsingRendererV2(1)
-              zLayer.setCustomProperty("labeling","pal" ) 
+              zLayer.setCustomProperty("labeling","pal" )
               zLayer.setCustomProperty("labeling/fontSize",str(zFontSize))
               zLayer.setCustomProperty("labeling/fontFamily",zFont )
               zLayer.setCustomProperty("labeling/fontWeight","75" )
@@ -1137,14 +1138,14 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
               if (zFontAlignement.find("CENTER"))!= -1 : zFontAlignement = "1"
               elif (zFontAlignement.find("LEFT"))!=-1 : zFontAlignement = "0"
               else : zFontAlignement = "2"
-              
+
               zLayer.setCustomProperty("labeling/multilineAlign", "1")
-              zLayer.setCustomProperty("labeling/enabled","true" ) 
+              zLayer.setCustomProperty("labeling/enabled","true" )
 
               if tempoTest : zLayer.setCustomProperty("labeling/isExpression","true" )
-              else : zLayer.setCustomProperty("labeling/isExpression","false" ) 
+              else : zLayer.setCustomProperty("labeling/isExpression","false" )
               textColorR, textColorG, textColorB = StrRGB(zFontColor)
-                 
+
               zLayer.setCustomProperty("labeling/textColorR",textColorR)
               zLayer.setCustomProperty("labeling/textColorG",textColorG)
               zLayer.setCustomProperty("labeling/textColorB",textColorB)
@@ -1167,12 +1168,12 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
               self.iface.setActiveLayer(zLayer)
               zContext = self.iface.mapCanvas().mapRenderer().rendererContext()
               zLayer.triggerRepaint()
-              self.iface.legendInterface().refreshLayerSymbology( zLayer ) 
+              self.iface.legendInterface().refreshLayerSymbology( zLayer )
               HasMakeLabeller = True
-   
 
-     
-        elif x.find('VISIBILITY ZOOM')!=-1 and not zForceZoom:  FixeZOOM(x, zLayer, nSizeMap, nSizeMapUnits, 5, 2, 3, True) 
+
+
+        elif x.find('VISIBILITY ZOOM')!=-1 and not zForceZoom:  FixeZOOM(x, zLayer, nSizeMap, nSizeMapUnits, 5, 2, 3, True)
 
 
         #ANNOTATIONS <=> etiquettes personnalisees
@@ -1193,18 +1194,18 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                MyCoord = zCoordXY.split(",")
                X = float(MyCoord[0])
                Y = float(MyCoord[1])
-            else:   
+            else:
                feat = QgsFeature()
                index2 = vprovider.fieldNameIndex(nLabelFieldName)
                vprovider.featureAtId(zID,feat,True,[index2])
                geom = feat.geometry()
                X = float(geom.centroid().asPoint().x())
                Y = float(geom.centroid().asPoint().y())
-            
+
             zIndex = FixeIndex(0,zZoomPropertiesAnnotations, "TEXT")
             zText = "Une Annotation !"
             nbHauteur = 1
-            
+
             if zIndex > -1:
                zText = str(astyle[zIndex])
                NbCarac = CountCaractere(zText, "'")
@@ -1215,7 +1216,7 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                         zText = zText + " " + atempostr
                         j+= 1
                         atempostr = str(astyle[j])
-                        
+
                   zText = zText + " " + str(astyle[j])
             else:
                zIndexField = vprovider.fieldNameIndex(nLabelFieldName)
@@ -1224,13 +1225,13 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                   feat = QgsFeature()
                   vprovider.featureAtId(zID,feat,True,[index2])
                   zText = str(feat.attributeMap()[index2].toString())
-                  
+
             zText = NetStrInfos(zText, True, True, False, False, ("'"))
             zText = zText.replace("\\n", "<br>")
             zmaxlen = len(zText)
             zfacteurH = 20
             zfacteurL = 10
-            zFontBold = False                              
+            zFontBold = False
             zFontUnderline = False
             zFontItalic = False
 
@@ -1241,28 +1242,28 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
             zForeColor = rgb_to_hex(0)
             zFont = "MS Shell Dlg 2"
             zFontSize = 8.0
-            
+
             if zIndex!=-1:
                nProp = NetStrInfos(zZoomPropertiesAnnotations[zIndex], True, True, False, False, ("(", ")"))
                nProp = nProp.split(",")
 
                zFont = NetStrInfos(nProp[0], True, True, False, True, ("\"", "'"))
                zFontCarac = ValCarac(int(nProp[1]),0)
-               #nProp[1]:concerne le halo, n'est pas jou�
+               #nProp[1]:concerne le halo, n'est pas jouï¿½
 
                if tStyleLabel.has_key(zFontCarac):
                   TheStyle = tStyleLabel[zFontCarac]
                   zFontBold = TheStyle[0]
                   zFontUnderline = TheStyle[1]
                   zFontItalic = TheStyle[2]
-               
+
                zFontSize = float(nProp[2])
                zForeColorV = InvRGB(long(nProp[3]))
-               zForeColor = rgb_to_hex(long(nProp[3])) 
+               zForeColor = rgb_to_hex(long(nProp[3]))
 
                if len(nProp) == 5:
                   zBackColorV = InvRGB(long(nProp[4]))
-                  zBackColor = rgb_to_hex(long(nProp[4])) 
+                  zBackColor = rgb_to_hex(long(nProp[4]))
 
 
             if X!=-1 and Y!=-1:
@@ -1279,10 +1280,10 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                       if ztmplen > zmaxlen : zmaxlen = ztmplen
 
                if nbHauteur == 1 : zfacteurH = 30
-                  
+
                largeur = int(zfacteurL * zmaxlen)
                hauteur = int(zfacteurH * nbHauteur)
-               
+
                lInfosProj4 = zForceCRS.split("|")
                zProj4Dest = lInfosProj4[3]
 
@@ -1291,14 +1292,14 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                    point = zTransform.transform(QgsPoint(X, Y))
                else :
                    point = QgsPoint(X, Y)
-                   
+
                textItem.setMapPosition(point)
-               textItem.setFrameSize(QSizeF(largeur,hauteur)) 
-               textItem.setFrameColor(zForeColorV) 
-               textItem.setFrameBackgroundColor(zBackColorV) 
+               textItem.setFrameSize(QSizeF(largeur,hauteur))
+               textItem.setFrameColor(zForeColorV)
+               textItem.setFrameBackgroundColor(zBackColorV)
                zDoc = QTextDocument()
 
-               
+
                if zFontBold: zText = "<b>"+zText+"</b>"
                if zFontItalic: zText = "<i>"+zText+"</i>"
                if zFontUnderline: zText = "<u>"+zText+"</u>"
@@ -1309,7 +1310,7 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
     zStr = str(zLayer.name())
     if HasMakeLabeller  and zStr.find("Etiquettes")==-1:
        zLayer.setLayerName(zLayer.name()+" (Etiquettes : "+nLabelFieldName +")")
-    return  
+    return
 
 
 
@@ -1328,7 +1329,7 @@ def rgb_to_hex(zColor):
     zRGB = (Blue, Green, Red)
     hexColor = '#%02x%02x%02x' % zRGB
     return hexColor
-   
+
 #-------------------------------
 #FONCTION retour couleur MAPINFO
 #-------------------------------
@@ -1355,14 +1356,14 @@ def StrRGB(zColor):
        sGreen = str(int(zColor // 256 % 256))
        sRed =  str(int(zColor // 256 // 256 % 256 ))
     return sRed, sGreen, sBlue
-   
+
 #--------------------------------------------------
-#FONCTION cr�ation cha�ne ID trame (fichier PNG/SVG)
+#FONCTION crï¿½ation chaï¿½ne ID trame (fichier PNG/SVG)
 #--------------------------------------------------
 def StrBrush(zBrush):
-    if len(zBrush)<4:  
+    if len(zBrush)<4:
        for i in range(3-len(zBrush)):
-           zBrush = "0"+zBrush 
+           zBrush = "0"+zBrush
     return zBrush
 
 
@@ -1372,44 +1373,44 @@ def MakeValue(sValue):
        aMulti = int(tempo[1])
        return float(float(tempo[0])*pow(10,aMulti))
     else:
-       return float(sValue) 
+       return float(sValue)
 
 #----------------------------------------------------
 #FONCTION recherche position mot clef dans un tableau
-#----------------------------------------------------   
+#----------------------------------------------------
 def FixeIndex(IndexDeb, DicSearch, StrSearch):
     FindSearch = False
     for j in range(IndexDeb, len(DicSearch)):
-          ztempo = NetStrInfos(DicSearch[j], True, True, True, False, ())  
+          ztempo = NetStrInfos(DicSearch[j], True, True, True, False, ())
           if ztempo == StrSearch :
              FindSearch = True
              break
     if FindSearch: j+= 1
     else: j = -1
     return j
-   
+
 #------------------------------------------------------
-#FONCTION extrude les options �tiquettes non support�es
-#------------------------------------------------------   
+#FONCTION extrude les options ï¿½tiquettes non supportï¿½es
+#------------------------------------------------------
 def ValCarac(nValue, nBorne):
     tValue = (1024, 512, 256, 32)
     for i in range(len(tValue)-nBorne):
         if nValue > tValue[i]: nValue = nValue - tValue[i]
     return nValue
-   
+
 #------------------------------------------------------
-#FONCTION labellisation m�thode analyse proportionnelle
-#------------------------------------------------------   
+#FONCTION labellisation mï¿½thode analyse proportionnelle
+#------------------------------------------------------
 def TypeMethode(zMethode):
     if zMethode == "LOG": zMethode = "Logarithme"
     elif zMethode == "FIXED": zMethode = "Taille fixe"
-    elif zMethode == "SQRT": zMethode = "Racine carr�e"
-    elif zMethode == "CONST": zMethode = "Lin�aire"
-    return zMethode  
+    elif zMethode == "SQRT": zMethode = "Racine carrï¿½e"
+    elif zMethode == "CONST": zMethode = "Linï¿½aire"
+    return zMethode
 
 #------------------------------------------------------
-#FONCTION calcul valeur zoom �chelle
-#------------------------------------------------------   
+#FONCTION calcul valeur zoom ï¿½chelle
+#------------------------------------------------------
 def GetValueZoom(nValue, nUnits,nSizeMap, nSizeMapUnits):
     class Length(object):
         __metaclass__ = MeasureType
@@ -1431,15 +1432,15 @@ def GetValueZoom(nValue, nUnits,nSizeMap, nSizeMapUnits):
     sSizeMap = sSizeMap.replace(nSizeMapUnits,"")
     zEchelle = long(float(sValue) /float(sSizeMap))
     return zEchelle
-      
+
 #---------------------------------------
 #FONCTION recherche index / nom attribut
-#---------------------------------------   
+#---------------------------------------
 def GetIndexFieldName(zLayer, nFieldName, zType):
-    if zType == "SHAPEFILE": 
+    if zType == "SHAPEFILE":
        provider = zLayer.dataProvider()
        zIndex = provider.fieldNameIndex(nFieldName)
-       
+
     elif zType == "NATIVE":
        nFileName = str(zLayer.source())
        mytable = open(nFileName, 'r')
@@ -1448,10 +1449,10 @@ def GetIndexFieldName(zLayer, nFieldName, zType):
        debFields = False
        CountFields = 0
        nFieldName = nFieldName.upper()
-       
+
        for line in mytable:
            astring = NetStrInfos(str(QString.fromLocal8Bit(line)), True, True, True, False, ())
-           if debFields and CountFields > 0: 
+           if debFields and CountFields > 0:
               CountFields = CountFields - 1
               if astring.startswith(nFieldName):
                  zIndex = i
@@ -1468,21 +1469,21 @@ def GetIndexFieldName(zLayer, nFieldName, zType):
               debFields = True
               tempo = astring.split()
               CountFields = int(tempo[1])
-               
+
            if CountFields == 0: debFields = False
        mytable.closed
-    
+
     return zIndex
 
 #-------------------------------
 #FONCTION recherche index couche
-#-------------------------------   
+#-------------------------------
 def GetIndexLayer(self, vLayer):
     zIndex = 0
     nLayers = self.iface.mapCanvas().layerCount()
     for i in range(nLayers):
         cLayer = self.iface.mapCanvas().layer(i)
-        if cLayer.id()== vLayer.id(): break  
+        if cLayer.id()== vLayer.id(): break
         zIndex+= 1
     return zIndex
 
@@ -1496,7 +1497,7 @@ def GetWMSInfos(nTableRaster):
     nParamWMS=("GetMap=\"","<SRS>","<Layer>","wms_version=\"","minx=\"","miny=\"","maxx=\"","maxy=\"","\" format=\"")
     lstWMS = ""
     for i in range(len(nParamWMS)):
-        tempo = ExtractValWMS(nWMS,str(nParamWMS[i]))  
+        tempo = ExtractValWMS(nWMS,str(nParamWMS[i]))
         if tempo !="": lstWMS = lstWMS + tempo + "|"
     return lstWMS
 
@@ -1507,22 +1508,22 @@ def ExtractValWMS(nStr, nRub):
     if nStr!="" and nRub !="":
        if nRub == "<Layer>":
           zTabVal = ExtractLayers(nStr)
-       else:  
+       else:
           posd = nStr.find(nRub)+len(nRub)
           if posd!=-1:
-             if nRub.startswith("<"): posf = nStr.find("<",posd)  
+             if nRub.startswith("<"): posf = nStr.find("<",posd)
              else: posf = nStr.find("\"",posd)
              if posf > posd: zTabVal = nStr[posd:posf]
     return zTabVal
-      
+
 def ExtractLayers(nStr):
-    zLayersWMS = "" 
+    zLayersWMS = ""
     posd=nStr.find("<Name>")+len("<Name>")
     posf=0
     while posd > posf:
           posf = nStr.find("<",posd)
           if posf > posd:
-             if zLayersWMS == "": zLayersWMS = nStr[posd:posf] 
+             if zLayersWMS == "": zLayersWMS = nStr[posd:posf]
              else: zLayersWMS = zLayersWMS + "," + nStr[posd:posf]
           posd = nStr.find("<Name>", posf)+len("<Name>")
     posd=nStr.find("<Style>")+len("<Style>")
@@ -1531,7 +1532,7 @@ def ExtractLayers(nStr):
     while posd > posf:
           posf = nStr.find("<",posd)
           if posf > posd:
-             if zLayersWMS.endswith("|") : zLayersWMS = zLayersWMS + nStr[posd:posf] 
+             if zLayersWMS.endswith("|") : zLayersWMS = zLayersWMS + nStr[posd:posf]
              else: zLayersWMS = zLayersWMS + "," + nStr[posd:posf]
           else :
              if zLayersWMS.endswith("|") : zLayersWMS = zLayersWMS + 'default'
@@ -1539,11 +1540,11 @@ def ExtractLayers(nStr):
           posd = nStr.find("<Style>", posf)+len("<Style>")
     return zLayersWMS
 
-                
+
 #--------------------------
-#FONCTION visibilit� couche
+#FONCTION visibilitï¿½ couche
 #--------------------------
-def MakeVisibility(self, vLayer, sLayerVisibility): 
+def MakeVisibility(self, vLayer, sLayerVisibility):
     nCond = True
     stempo = sLayerVisibility.split("|")
     zIndex = FixeIndex(0,stempo, "DISPLAY OFF")
@@ -1553,7 +1554,7 @@ def MakeVisibility(self, vLayer, sLayerVisibility):
 
 
 #---------------------------------------
-#FONCTIONS Analyse par densit� de points
+#FONCTIONS Analyse par densitï¿½ de points
 #---------------------------------------
 def createSinglePolygon(self, vlayer):
     provider = vlayer.dataProvider()
@@ -1569,7 +1570,7 @@ def createSinglePolygon(self, vlayer):
           geom = geom.combine(QgsGeometry( feat.geometry() ))
           count = count + add
     return geom
-    
+
 
 def vectorRandom(self, n, layer, xmin, xmax, ymin, ymax):
     provider = layer.dataProvider()
@@ -1596,17 +1597,17 @@ def vectorRandom(self, n, layer, xmin, xmax, ymin, ymax):
     return points
 
 
-def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, nFillColor, nType):    
+def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, nFillColor, nType):
     outFeat = QgsFeature()
     if nRatio == 0:
        ratio = 1
        while nMax > 1000:
              ratio = (ratio * 10)
              nMax = (nMax / 1000)
-    else: ratio = nRatio   
-       
+    else: ratio = nRatio
+
     QApplication.setOverrideCursor( QCursor( Qt.WaitCursor ) )
-    
+
     if design == self.tr("unstratified"):
        ext = inLayer.extent()
        if inLayer.type() == inLayer.RasterLayer:
@@ -1620,11 +1621,11 @@ def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, 
     idVar, count = 0, 70.00
     add = ( 100.00 - 70.00 ) / len(points)
 
-    zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, inLayer) 
+    zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, inLayer)
     AnaLayer = QgsVectorLayer("Point", QString.fromLocal8Bit(inLayer.name()) + " (DensitePoints" + " : " + str(value) + " - Taille "+str(nSize)+" pour "+str(ratio) + ")", "memory")
     DefineLayerProj(self, inLayer, AnaLayer)
     RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
-    
+
     prCentro = AnaLayer.dataProvider()
     ret = prCentro.addAttributes( [ QgsField("ID", QVariant.Int)])
     AnaLayer.updateFieldMap()
@@ -1638,7 +1639,7 @@ def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, 
         count = count + add
 
     if nSize == 0 : nSize = 0.26
-       
+
     zCentroideLayer = QgsMapLayerRegistry.instance().addMapLayers([AnaLayer])[0]
     symbols = AnaLayer.rendererV2().symbols()
     symbol = symbols[0]
@@ -1650,9 +1651,9 @@ def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, 
 
     vInfos = zTempoInfos.split(",")
     sl = MakeSimpleMARKERV2(vInfos)
-    symbol.appendSymbolLayer(sl)     
-       
-    self.iface.legendInterface().refreshLayerSymbology(zCentroideLayer) 
+    symbol.appendSymbolLayer(sl)
+
+    self.iface.legendInterface().refreshLayerSymbology(zCentroideLayer)
     QApplication.restoreOverrideCursor()
     return zCentroideLayer
 
@@ -1667,7 +1668,7 @@ def loopThruPolygons(self, inLayer, numRand, design, ratio):
     if design == self.tr("field"):
        for (i, attr) in sProvider.fields().iteritems():
            if (unicode(numRand) == attr.name()):
-              index = i 
+              index = i
               break
     count = 10.00
     add = 60.00 / sProvider.featureCount()
@@ -1701,7 +1702,7 @@ def simpleRandom(self, n, bound, xmin, xmax, ymin, ymax):
              points.append(pGeom)
              i+= 1
              count = count + add
-    return points   
+    return points
 
 
 
@@ -1711,12 +1712,12 @@ def simpleRandom(self, n, bound, xmin, xmax, ymin, ymax):
 def FixeSVGFile(zFileName, zFileLOC):
     isSVGFile = False
     zFileName = zFileName.replace("\\","/")
-   
+
     if os.path.exists(zFileName): isSVGFile = True
     else:
        zPath = os.path.dirname(__file__)
        zPath = zPath.replace("\\","/")
-       zPos =  zFileName.rfind(".") 
+       zPos =  zFileName.rfind(".")
        zPathSymbol = os.path.join(zPath + zFileLOC, zFileName[0:zPos]+".svg")
        if os.path.exists(zPathSymbol):
           isSVGFile = True
@@ -1727,13 +1728,13 @@ def FixeSVGFile(zFileName, zFileLOC):
           for i in range(len(svgPaths)):
               PathSVG =  svgPaths[i] + "/" + zFileName
               if os.path.exists(PathSVG):
-                 zFileName = PathSVG 
+                 zFileName = PathSVG
                  isSVGFile = True
                  break
     if not isSVGFile : zFileName = ""
 
     return isSVGFile, zFileName
-    
+
 #-------------------------------------------------
 #FONCTIONS SYMBOLOGIE V2 : Liste des types simples
 #-------------------------------------------------
@@ -1742,27 +1743,27 @@ def InitLayerSymbol(zSymbol):
     for i in range(zsymbolLayerCount,-1, -1):
         zSymbol.deleteSymbolLayer(i)
     return zSymbol
-    
+
 def MakeMARKERV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
     zSymbol = InitLayerSymbol(zSymbol)
     zIndex = FixeIndex(0,zInfosSymbos, "SYMBOL")
 
     if zIndex == -1 :
-       zTempoInfos = "32, 16777215, 1.0" 
+       zTempoInfos = "32, 16777215, 1.0"
        vInfos = zTempoInfos.split(",")
        sl = MakeSimpleMARKERV2(vInfos)
-       zSymbol.appendSymbolLayer(sl)       
+       zSymbol.appendSymbolLayer(sl)
     else:
        while zIndex!=-1:
-             zTypeSymbol = 1 #valeur � d�faut, type simple
+             zTypeSymbol = 1 #valeur ï¿½ dï¿½faut, type simple
              zInfos = MakePropertiesFONT(zIndex, zInfosSymbos[zIndex], zInfosSymbos)
              zInfos = NetStrInfos(zInfos, False, False, False, False, ("(", ")"))
              vInfos = zInfos.split(",")
              zTypeSymbol = len(vInfos)
 
-             #Symbole FONT (shape, color, size, fontname, fontstyle, rotation) 
+             #Symbole FONT (shape, color, size, fontname, fontstyle, rotation)
              if zTypeSymbol == 6 : sl = MakeFontMARKERV2(vInfos)
-             #Symbole FILE (filename, color, size, customstyle) 
+             #Symbole FILE (filename, color, size, customstyle)
              elif zTypeSymbol == 4 : sl = MakeSvgMARKERV2(vInfos)
              #Symbole simple (shape, color, size)
              else: sl = MakeSimpleMARKERV2(vInfos)
@@ -1783,16 +1784,16 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
        zTypeLine = str(vInfos[1])
        zColorRGB = long(vInfos[2])
        zLineColor = InvRGB(zColorRGB)
-    else:  
+    else:
        zSize = 0.26
-       zTypeLine = '2' 
+       zTypeLine = '2'
        zLineColor = QColor(255, 255, 255)
-    zTempo = AdapteRatioMapInfo(zSize, True, False) 
+    zTempo = AdapteRatioMapInfo(zSize, True, False)
     zSizeLine = str(zTempo)
     zColorLine =  QString(QgsSymbolLayerV2Utils.encodeColor(zLineColor))
 
     if tLineV2.has_key(zTypeLine): zQtLine = QString(tLineV2[zTypeLine])
-    else : zQtLine = QString("solid") 
+    else : zQtLine = QString("solid")
     RefzSizeLine = zSizeLine
     RefzQtLine = zQtLine
     RefzColorLine = zColorLine
@@ -1803,9 +1804,9 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
     QMessageBox.information(None,"DEBUG", "it's not OK ?")
     return
     """
-    
+
     if tLineCompositeV2.has_key(zTypeLine) :
-         TheStyles = tLineCompositeV2[zTypeLine]   
+         TheStyles = tLineCompositeV2[zTypeLine]
          zTypeLines = TheStyles[0]
          zOffsets = TheStyles[1]
          zSubLine = zTypeLines.split(",")
@@ -1815,7 +1816,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
              zSizeLine = RefzSizeLine
              zQtLine = RefzQtLine
              zColorLine = RefzColorLine
-             
+
              if zSubLine[i]=='0':
                 #SIMPLELINE : props {'color', 'offset', 'penstyle', 'width', 'use_custom_dash', 'joinstyle', 'custom_dash', 'capstyle'}
                 if tSubSymbLineCompositeV2.has_key(zTypeLine) :
@@ -1834,13 +1835,13 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                              zLineColor = InvRGB(long(zInfoSubLine[k].split("|")[2]))
                              zColorLine =  QString(QgsSymbolLayerV2Utils.encodeColor(zLineColor))
                 zSymbol = MakeSimpleLINEV2(zSymbol, zColorLine,  str(float(zOffset[i])), zQtLine, zSizeLine, False)
-                
+
              elif zSubLine[i]=='1':
-                #MARKERLINE : props {'color','offset', 'interval', 'rotate', 'placement'} 
+                #MARKERLINE : props {'color','offset', 'interval', 'rotate', 'placement'}
                 props = {'marker':'','offset':'0.0','interval': str(zOffset[i]), 'rotate':'0','placement': ''}
                 sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("MarkerLine").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
-                
+
                 if tSubSymbSymbolCompositeV2.has_key(zTypeLine):
                    TheSubStyles = tSubSymbSymbolCompositeV2[zTypeLine]
                    zQtMarker = str(TheSubStyles[1])
@@ -1849,7 +1850,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
 
                    if TheSubStyles[3]!= "%":
                       zLineColor = InvRGB(long(TheSubStyles[3]))
-                      zColorLine =  QString(QgsSymbolLayerV2Utils.encodeColor(zLineColor))                      
+                      zColorLine =  QString(QgsSymbolLayerV2Utils.encodeColor(zLineColor))
 
                 indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
                 props = {'color_border' : zColorLine , 'offset' : '0.0', 'size' : zSizeSymbol ,'color' : zColorLine, 'name' :zQtMarker, 'angle': '0.0'}
@@ -1857,25 +1858,25 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                 zResult = zSymbol.symbolLayer(0).setSubSymbol(slsub) #indexSubSymbolLayer #Avant !
              else:
                 #Decoration LINE
-                props = {'color' : zColorLine, 'offset': str(zOffset[i]), 'penstyle': zQtLine , 'width': zSizeLine, 'use_custom_dash':'', 'joinstyle':'round', 'custom_dash':'', 'capstyle':'butt'}             
+                props = {'color' : zColorLine, 'offset': str(zOffset[i]), 'penstyle': zQtLine , 'width': zSizeLine, 'use_custom_dash':'', 'joinstyle':'round', 'custom_dash':'', 'capstyle':'butt'}
                 sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("SimpleLine").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
-                 
+
                 props = {'width' : zSizeLine, 'color' : zColorLine}
                 sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("LineDecoration").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
 
-    else:    
- 
+    else:
+
              zLineSTR = StrBrush(zTypeLine)
              zPathLine = QString("")
              zPath = os.path.dirname(__file__)
              zPath = zPath.replace("\\","/")
              zPathLine = os.path.join(zPath + "/svg/", "mapinfo_line_"+zLineSTR+".svg")
 
-             if os.path.exists(zPathLine): 
+             if os.path.exists(zPathLine):
                 zPathLine = ReColoreSVG(zPath, zPathLine, "line" , zLineSTR, zColorRGB)
-                
+
                 if os.path.exists(zPathLine):
                     zSymbol.deleteSymbolLayer(0)
                     props = {'marker':'','offset':'0.0','interval': '3.0', 'rotate':'0','placement': ''}
@@ -1883,7 +1884,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                     zSymbol.appendSymbolLayer(sl)
 
                     indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
-                    
+
                     props = {'name' :  QString(zPathLine) , 'size' : '3.0' , 'angle': '0.0'}
                     slsub = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("SvgMarker").createSymbolLayer(props)
                     zSymbol.symbolLayer(indexSubSymbolLayer).subSymbol().appendSymbolLayer(slsub)
@@ -1905,7 +1906,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
        zLineColor = "0"
        zFillColor = "16777215"
        zIndex = FixeIndex(0,zInfosSymbos, "LINE")
-       if zIndex!=-1: 
+       if zIndex!=-1:
           zInfos = NetStrInfos(zInfosSymbos[zIndex], False, False, False, False, ("(", ")"))
           vInfos = zInfos.split(",")
           zLineColor = str(vInfos[2])
@@ -1916,7 +1917,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
        zSymbol.appendSymbolLayer(sl)
 
     else:
-       
+
        while zIndex!=-1:
              zInfos = NetStrInfos(zInfosSymbos[zIndex], False, False, False, False, ("(", ")"))
              vInfos = zInfos.split(",")
@@ -1927,7 +1928,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
              isMakeSymbol = False
              zBackColor = str(vInfos[2]) if zTypeBrush==3 else str(vInfos[1])
 
-             #Il faut d�finir quel est le type de repr�sentation � appliquer :
+             #Il faut dï¿½finir quel est le type de reprï¿½sentation ï¿½ appliquer :
              #SimpleFill ou SVGFill
              if tBrushV2.has_key(zBrush):
                 zIndexPEN = FixeIndex(0,zInfosSymbos, "PEN")
@@ -1939,22 +1940,22 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                    zPENColor = str(vInfos[2])
                 else:
                    zPENColor = "0" #str(zForeColor)
-                   zLinePen = "2" 
+                   zLinePen = "2"
                    zSize = "1.0"
                 #props {'color_border', 'style_border', 'offset', 'style', 'color', 'width_border'}
                 vTempoInfos = zPENColor + "," + zLinePen + ",1.0," + zBrush + "," + zForeColor + "," + zSize
 
                 if int(zBrush) > 2 and zTypeBrush==3 :
-                   vTempoInfosSub =  zBackColor + ",2,1.0,2,"+ zBackColor + ", 0.26" 
-                   vInfos = vTempoInfosSub.split(",")                    
+                   vTempoInfosSub =  zBackColor + ",2,1.0,2,"+ zBackColor + ", 0.26"
+                   vInfos = vTempoInfosSub.split(",")
                    slsub = MakeSimpleBRUSHV2(vInfos)
-                   zSymbol.appendSymbolLayer(slsub)  
-                
+                   zSymbol.appendSymbolLayer(slsub)
+
                 vInfos = vTempoInfos.split(",")
                 sl = MakeSimpleBRUSHV2(vInfos)
 
              else:
- 
+
                 #props {'svgFile', 'width', 'angle'}
                 zBrushSTR = StrBrush(zBrush)
                 zPathTexture = QString("")
@@ -1963,7 +1964,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                 zPathTexture = os.path.join(zPath + "/svg/", "mapinfo_brush_"+zBrushSTR+".svg")
 
                 if os.path.exists(zPathTexture):
-                       zPathTexture = ReColoreSVG(zPath, zPathTexture, "brush" , zBrushSTR, zForeColor)  
+                       zPathTexture = ReColoreSVG(zPath, zPathTexture, "brush" , zBrushSTR, zForeColor)
                        #props {'color_border', 'style_border', 'offset', 'style', 'color', 'width_border'}
                        zIndexPEN = FixeIndex(0,zInfosSymbos, "PEN")
                        if zIndexPEN!=-1:
@@ -1974,16 +1975,16 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                           zPENColor = str(vInfos[2])
                        else:
                           zPENColor = str(zForeColor)
-                          zLinePen = "2" 
+                          zLinePen = "2"
                           zSize = str(0.26)
 
-                       if zTypeBrush ==3 :       
+                       if zTypeBrush ==3 :
                           vTempoInfos = zPENColor + ","+zLinePen+",1.0,2," + zBackColor + "," + zSize
                           vInfos = vTempoInfos.split(",")
                           sl = MakeSimpleBRUSHV2(vInfos)
                           zSymbol.appendSymbolLayer(sl)
 
-                       if os.path.exists(zPathTexture): 
+                       if os.path.exists(zPathTexture):
                            zPathTexture = QString(zPathTexture)
                            vTempoInfos = zPathTexture + ",12.0,0.0"
                            vInfos = vTempoInfos.split(",")
@@ -1991,7 +1992,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                            zSymbol.appendSymbolLayer(sl)
                            isMakeSymbol = True
 
-                       #il faut une option zIsAna 
+                       #il faut une option zIsAna
                        if zIsAna: return
 
                        if zSymbol.symbolLayerCount() > 0:
@@ -2002,11 +2003,11 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                           zBorderColor = InvRGB(long(zPENColor))
                           zColor = QString(QgsSymbolLayerV2Utils.encodeColor(zBorderColor))
                           zSizeLine = str(AdapteRatioMapInfo(float(zSize), True, False))
-                          
+
                           props = {'color' : zColor, 'offset': '0.0', 'penstyle': zQtStyleBorder , 'width': zSizeLine, 'use_custom_dash':'', 'joinstyle':'round', 'custom_dash':'', 'capstyle':'butt'}
                           slsub = QgsLineSymbolV2.createSimple(props)
                           zResult = zSymbol.symbolLayer(0).setSubSymbol(slsub)#indexSubSymbolLayer #Avant !
-                          
+
                 else :
                     #props {'color_border', 'style_border', 'offset', 'style', 'color', 'width_border'}
                     vTempoInfos = zForeColor + ",2,1.0,2," + zBackColor + ",0.26"
@@ -2015,7 +2016,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
 
              zIndex = FixeIndex((zIndex+1),zInfosSymbos, "BRUSH")
              if not isMakeSymbol: zSymbol.appendSymbolLayer(sl)
-                      
+
     return zSymbol
 
 
@@ -2027,8 +2028,8 @@ def MakeSvgBRUSHV2(vInfos):
     zAngle = str(vInfos[2])
 
     #TATAR
-    #Quelque chose a chang� depuis la 1.8  ????
-    #Probl�me idem sur tous les styles avec SVG ...
+    #Quelque chose a changï¿½ depuis la 1.8  ????
+    #Problï¿½me idem sur tous les styles avec SVG ...
     props = {'svgFile': zSvgFile, 'width' : zWidth , 'angle' : zAngle}
     sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("SVGFill").createSymbolLayer(props)
     #solution a minima
@@ -2058,11 +2059,11 @@ def MakeSimpleBRUSHV2(vInfos):
     return sl
 
 def MakeCentroidBRUSHV2(vInfos):
-    #props {'size', 'offset', 'angle', 'name'}    
+    #props {'size', 'offset', 'angle', 'name'}
     return sl
 
-   
-   
+
+
 def MakeSimpleLINEV2(zSymbol, zColorLine, zOffset, zQtLine, zSizeLine, zNet):
     #SimpleLine
     #joinstyle : bevel, mitre, round
@@ -2085,12 +2086,12 @@ def MakeFontMARKERV2(vInfos):
     zSymbolCHR = QString(chr(int(vInfos[0])))
     zSymbolSize = AdapteRatioMapInfo(float(vInfos[2]), False, True)
     zSymbolFontName = str(vInfos[3])
-    zSymbolFontStyle = str(vInfos[4])  
+    zSymbolFontStyle = str(vInfos[4])
     zSymbolRotation = str(360.0-float(vInfos[5]))
     zSymbolColor = InvRGB(long(vInfos[1]))
-    zSize = str(zSymbolSize)    
+    zSize = str(zSymbolSize)
     zFillColor =  QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
-    
+
     props = {'color' : zFillColor , 'offset' : '1.0', 'angle': zSymbolRotation,
              'chr' : zSymbolCHR, 'font' : zSymbolFontName, 'size' : zSize}
     sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("FontMarker").createSymbolLayer(props)
@@ -2101,15 +2102,15 @@ def MakeSvgMARKERV2(vInfos):
     #props = {'size', 'offset', 'angle', 'name', 'outlinewidth', 'fillcolor', 'outlinecolor' }
     zSymbolFileName = NetStrInfos(str(vInfos[0]), True, True, False, False, ("\"", "'"))
     isSVGFile, zSymbolFileName = FixeSVGFile(zSymbolFileName, "/svg/symbols/")
-   
+
     zSymbolSize = str(float(vInfos[2]))
     zSymbolCustomStyle = str(float(vInfos[3]))
-    zSymbolRotation = '0.0' 
+    zSymbolRotation = '0.0'
     zSymbolColor = InvRGB(long(vInfos[1]))
     zSize = str(AdapteRatioMapInfo(float(vInfos[2]), False, False))
     zFillColor =  QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
 
-    props = {'size' : zSize, 'offset': '1.0', 'angle': zSymbolRotation, 'name': str(zSymbolFileName)} 
+    props = {'size' : zSize, 'offset': '1.0', 'angle': zSymbolRotation, 'name': str(zSymbolFileName)}
     sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("SvgMarker").createSymbolLayer(props)
 
     return sl
@@ -2117,25 +2118,25 @@ def MakeSvgMARKERV2(vInfos):
 def MakeSimpleMARKERV2(vInfos):
     #props {'color_border', 'offset', 'size', 'color', 'name', 'angle'}
     zSymbolCode = str(vInfos[0])
-    zSymbolSize = AdapteRatioMapInfo(float(vInfos[2]), False, False) 
+    zSymbolSize = AdapteRatioMapInfo(float(vInfos[2]), False, False)
     zSymbolRotation = '0.0'
 
     if tSymbolV2.has_key(zSymbolCode) : zQtNameMarker = QString(tSymbolV2[zSymbolCode])
     else : zQtNameMarker = 'rectangle'
-    
+
     zSymbolColor = InvRGB(long(vInfos[1]))
-    zSize = str(zSymbolSize)    
+    zSize = str(zSymbolSize)
     zFillColor =  QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
     if len(vInfos)==4:
        zSymbolColor = InvRGB(long(vInfos[3]))
        zBorderColor =  QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
-    else:    
-        #on n'a pas de symbole simple sans fond, on force une couleur blanche int�rieure
+    else:
+        #on n'a pas de symbole simple sans fond, on force une couleur blanche intï¿½rieure
         if int(zSymbolCode) < 40: zBorderColor = QString(QgsSymbolLayerV2Utils.encodeColor(QColor(0,0,0)))
         else :
             zBorderColor = zFillColor
             zFillColor =  QString(QgsSymbolLayerV2Utils.encodeColor(QColor(255,255,255)))
-    
+
     props = {'color_border' : zBorderColor , 'offset' : '1.0', 'size' : zSize,
              'color' : zFillColor, 'name' : zQtNameMarker, 'angle': zSymbolRotation}
     sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("SimpleMarker").createSymbolLayer(props)
@@ -2146,27 +2147,27 @@ def MakeSimpleMARKERV2(vInfos):
 #------------------------------------------------
 def ReColoreSVG(zPath, zSVGFileIn, zTypeSVG, zValueSVG, zColor):
     zPathTextureColor = zSVGFileIn
-    if zColor != '16777215': 
+    if zColor != '16777215':
        MyColorHexa = rgb_to_hex(long(zColor))
        MyColorHexa = MyColorHexa.replace("#","")
        zPathTextureColor = os.path.join(zPath + "/myworks/", "mapinfo_"+zTypeSVG+"_"+zValueSVG+"_"+str(MyColorHexa)+".svg")
 
     if not os.path.exists(zPathTextureColor):
-       mySVG = open(zSVGFileIn, 'r') 
-       f = file(zPathTextureColor, "w")
-       for line in mySVG:    
+       mySVG = open(zSVGFileIn, 'r')
+       f = open(zPathTextureColor, "w")
+       for line in mySVG:
            zStr = NetStrInfos(str(QString.fromLocal8Bit(line)), True, True, False, False, ())
            zStr = zStr.replace("fill:#000000","fill:#"+str(MyColorHexa))
            zStr = zStr.replace("stroke:#000000","stroke:#"+str(MyColorHexa))+"\n"
            f.write(zStr.encode("utf-8"))
        f.close()
        mySVG.closed
-          
+
     return zPathTextureColor
 
 
 #------------------------------------------------
-#FONCTION de d�termination des seuils de zoom
+#FONCTION de dï¿½termination des seuils de zoom
 #------------------------------------------------
 def FixeZOOM(zInfos, zLayer, zSizeMap, zSizeMapUnits, indexUnitsZoom, indexValueMinZoom, indexValueMaxZoom, IsZoomLabels):
     zZoomProperties = zInfos.split()
@@ -2175,22 +2176,22 @@ def FixeZOOM(zInfos, zLayer, zSizeMap, zSizeMapUnits, indexUnitsZoom, indexValue
     zValueMinZoom = float(GetValueZoom(float(zValueMinZoom), zUnitsZoom, zSizeMap, zSizeMapUnits))
     zValueMaxZoom = NetStrInfos(zZoomProperties[indexValueMaxZoom], False, False, False, False, (")"))
     zValueMaxZoom = float(GetValueZoom(float(zValueMaxZoom), zUnitsZoom, zSizeMap, zSizeMapUnits))
-    zValueMinZoom = math.floor(zValueMinZoom)    
+    zValueMinZoom = math.floor(zValueMinZoom)
     zValueMaxZoom = math.ceil(zValueMaxZoom)
     if zValueMaxZoom !=0 and (zValueMinZoom < zValueMaxZoom) :
        if IsZoomLabels :
           zLabel = zLayer.label()
-          zLabel.setScaleBasedVisibility(True) 
-          zLabel.setMinScale(zValueMinZoom) 
-          zLabel.setMaxScale(zValueMaxZoom)  
-       else:   
-         zLayer.toggleScaleBasedVisibility(True) 
-         zLayer.setMinimumScale(zValueMinZoom) 
+          zLabel.setScaleBasedVisibility(True)
+          zLabel.setMinScale(zValueMinZoom)
+          zLabel.setMaxScale(zValueMaxZoom)
+       else:
+         zLayer.toggleScaleBasedVisibility(True)
+         zLayer.setMinimumScale(zValueMinZoom)
          zLayer.setMaximumScale(zValueMaxZoom)
-    return   
+    return
 
 #----------------------------------------------------
-#FONCTION pour d�termination du seuil de transparence
+#FONCTION pour dï¿½termination du seuil de transparence
 #----------------------------------------------------
 def FixeALPHA(zInfos, zLayer, zSymbol):
     axstyle = zInfos.split()
@@ -2214,11 +2215,11 @@ def generateTransparencyList(minVal, maxVal, zALPHA ):
     return trList
 
 #------------------------------------------------
-#FONCTION de correction des polices noms compos�s
+#FONCTION de correction des polices noms composï¿½s
 #------------------------------------------------
 def MakePropertiesFONT(zIndex, zRac, zInfos):
    if zRac.find(')')!=-1: return zRac
-   zFontProperties = zRac                       
+   zFontProperties = zRac
    j = zIndex + 1
    atempostr = str(zInfos[j])
    while atempostr.find(')')==-1:
@@ -2230,25 +2231,25 @@ def MakePropertiesFONT(zIndex, zRac, zInfos):
    return zFontProperties
 
 #-----------------------------------
-#AUTRES FONCTIONS conversion unit�s
+#AUTRES FONCTIONS conversion unitï¿½s
 #-----------------------------------
 def FixeSize(zSize, zDpi, zUnits):
-    if zUnits == "MM" : zSize = float(zSize * zDpi / 25.4)    
+    if zUnits == "MM" : zSize = float(zSize * zDpi / 25.4)
     elif zUnits == "CM" : zSize = float(zSize * zDpi / 2.54)
-    return zSize  
+    return zSize
 
 def CmToPixels(MesureEnCm, zDpi):
     return int(MesureEnCm * zDpi / 2.54)
 
 def MmToPixels(MesureEnMm, zDpi):
-    return int(MesureEnCm * zDpi / 25.4) 
-       
+    return int(MesureEnCm * zDpi / 25.4)
+
 def CmToTwips(MesureEnCm):
-    return int(MesureEnCm * 566.928) 
+    return int(MesureEnCm * 566.928)
 
 def DefzTransform(zLayer, zProj4Dest):
     destinationCRS = QgsCoordinateReferenceSystem()
-    destinationCRS.createFromProj4(QString(zProj4Dest)) 
+    destinationCRS.createFromProj4(QString(zProj4Dest))
     sourceCRS = zLayer.crs()
     zTransform = QgsCoordinateTransform()
     zTransform.setSourceCrs(sourceCRS)
@@ -2258,11 +2259,11 @@ def DefzTransform(zLayer, zProj4Dest):
 def AdapteRatioMapInfo(zValue, isLINE, isFONT):
     zCoeff = 1
     if float(zValue)> 10.0 and isLINE and not isFONT: zCoeff = math.ceil(zValue/10.0)* 2
-    if float(zValue)< 10.0 and isLINE and not isFONT: zCoeff = 1 
+    if float(zValue)< 10.0 and isLINE and not isFONT: zCoeff = 1
     if float(zValue)> 10.0 and not isLINE and isFONT: zCoeff = 0.5
-    zValue = float(zValue)/(RatioMapInfo * zCoeff)   
-    return zValue   
-   
+    zValue = float(zValue)/(RatioMapInfo * zCoeff)
+    return zValue
+
 
 #-------------------------------------------
 # FONCTION REALISATION MISE EN PAGE
@@ -2287,15 +2288,15 @@ def MakeComposer(self, iComposer, iInfosComposer):
         c.addComposerMap(composerMap)
         MakeTEXT(self, c, composerView, c.paperWidth()/3, 10.0, "Ma carte MapInfo", QColor(0,0,255), -1, dpmm, True)
         MakeLEGEND(self, c, composerView, 10.0, 10.0, "-1", QColor(255,240,120), QColor(0,0,0), 0.26)
-        MakeNORTHARROW(self, c, composerView, composerMap)        
+        MakeNORTHARROW(self, c, composerView, composerMap)
         MakeSCALEBAR(self, c, composerView, composerMap)
 
-    else:    
+    else:
         tInfosComposer = iInfosComposer.split("|")
-        #Le printer ne sert que si action d'impression derri�re
+        #Le printer ne sert que si action d'impression derriï¿½re
         printer = QPrinter(QPrinter.HighResolution)
         printer.setCreator('OpenWor')
-        
+
         for i in range(len(tInfosComposer)-1,-1, -1):
             stempo = NetStrInfos(tInfosComposer[i], True, False, False, False, ())
             x = stempo.upper()
@@ -2305,11 +2306,11 @@ def MakeComposer(self, iComposer, iInfosComposer):
                zIndex = FixeIndex(0,tX, "ORIENTATION")
                if zIndex !=-1:
                   if tX[zIndex]== "PORTRAIT" :
-                      c.setPaperSize(float(h), float(w)) 
+                      c.setPaperSize(float(h), float(w))
                       w, h = c.paperHeight(), c.paperWidth()
                       printer.setOrientation(QPrinter.Portrait)
                   else:
-                      c.setPaperSize(float(w), float(h)) 
+                      c.setPaperSize(float(w), float(h))
                       w, h = c.paperWidth(), c.paperHeight()
                       printer.setOrientation(QPrinter.Landscape)
                   break
@@ -2318,13 +2319,13 @@ def MakeComposer(self, iComposer, iInfosComposer):
                tX = x.split(" ")
                zIndex = FixeIndex(0,tX, "PAPERSIZE")
                zPaper = int(tX[zIndex])
-               w, h = FixePaperSize(zPaper) 
-        
+               w, h = FixePaperSize(zPaper)
+
         for i in range(len(tInfosComposer)):
             stempo = NetStrInfos(tInfosComposer[i], True, False, False, False, ())
             if stempo.upper().startswith("SET COORDSYS LAYOUT UNITS"):
                stempo = NetStrInfos(stempo.upper(), True, False, False, False, ("SET COORDSYS LAYOUT UNITS " ,"\""))
-               zUnit = stempo.lower() 
+               zUnit = stempo.lower()
             elif stempo.upper().startswith("CREATE FRAME"):
                i, composerMap = MakeFRAME(self, c, composerView, tInfosComposer, stempo, i, dpmm)
                MakeSCALEBAR(self, c, composerView, composerMap)
@@ -2349,7 +2350,7 @@ def CleanName(zName):
 # FONTIONS GENERIQUES CREATION FONT, APPLICATION OPTIONS GLOBALES OBJET
 #----------------------------------------------------------------------
 def MakeFONT(zPolice, zSize, zBold, zItalic, zUnderLine, zOverLine, zStrech):
-    Font = QFont(zPolice) 
+    Font = QFont(zPolice)
     zFont = QFont(Font)
     zFont.setPointSize(zSize)
     zFont.setBold(zBold)
@@ -2377,15 +2378,15 @@ def MakeFRAMEPEN(cItem, zPen, zLineColor, zLineSize):
 
 #-------------------------------------------
 # SOUS FONCTIONS REALISATION MISE EN PAGE
-#-------------------------------------------    
+#-------------------------------------------
 def MakeTEXT(self, c, composerView, posx, posy, zInfos, zColor, zpos, dpmm, isSimpleText):
     zPolice, zFontSize = "Verdana", 24
-    zFontBold = False                              
+    zFontBold = False
     zFontUnderline = False
     zFontItalic = False
     w, h = 80, 15
     zBackColor = QColor(255,255,255)
-    
+
     if not isSimpleText :
        zText = NetStrInfos(zInfos[zpos+1], True, False, False, False, ("'","\""))
        stempo = NetStrInfos(zInfos[zpos+2], True, False, False, False, ("(", ")"))
@@ -2395,13 +2396,13 @@ def MakeTEXT(self, c, composerView, posx, posy, zInfos, zColor, zpos, dpmm, isSi
        posx = float(dpmm * 2 * float(tDim[0]))
        posy = float(dpmm * 2 * float(tDim[1]))
        w = float(dpmm * 2 * (float(tDim[2])-float(tDim[0])))
-       h = float(dpmm * 2 * (float(tDim[3])-float(tDim[1])))       
+       h = float(dpmm * 2 * (float(tDim[3])-float(tDim[1])))
 
        stempo = NetStrInfos(zInfos[zpos+3], False, False, True, False, ())
        ztempo = stempo.split()
        zIndex = FixeIndex(0,ztempo, "FONT")
-       
-       
+
+
        if zIndex!=-1:
           aFontProperties = MakePropertiesFONT(zIndex, ztempo[zIndex], ztempo)
           aFontProperties = NetStrInfos(aFontProperties, False, False, False, False, ("(", ")"))
@@ -2421,26 +2422,26 @@ def MakeTEXT(self, c, composerView, posx, posy, zInfos, zColor, zpos, dpmm, isSi
              TheStyle = tStyleLabel[zFontCarac]
              zFontBold = TheStyle[0]
              zFontUnderline = TheStyle[1]
-             zFontItalic = TheStyle[2]   
+             zFontItalic = TheStyle[2]
 
           zFontSize = int(aFont[2])
           zPolice = NetStrInfos(aFont[0], True, True, False, True, ("\"", "'"))
-       
+
        labelFont = MakeFONT(zPolice, zFontSize, zFontBold, zFontItalic, zFontUnderline, False, 0)
 
     else :
        zText = zInfos
        labelFont = MakeFONT(zPolice, zFontSize, zFontBold, zFontItalic, zFontUnderline, False, 2)
-       
+
     composerLabel = QgsComposerLabel(c)
     composerLabel.setText(zText)
     composerLabel.setFont(labelFont)
     composerLabel.setFontColor(zColor)
-    composerLabel.setItemPosition(posx, posy, w, h, 0) 
+    composerLabel.setItemPosition(posx, posy, w, h, 0)
     c.addComposerLabel(composerLabel)
     composerLabel.adjustSizeToText()
-    MakeFRAMEBRUSH(composerLabel, "2", zBackColor)  
-    
+    MakeFRAMEBRUSH(composerLabel, "2", zBackColor)
+
     return (zpos+3)
 
 
@@ -2449,7 +2450,7 @@ def MakeARROW(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     stempo = NetStrInfos(Rac.upper(), False, False, False, False, ("CREATE LINE " ,"(", ")"))
     stempo = stempo.replace(" ",",")
     tDim = stempo.split(",")
-                                                                         
+
     posxs = float(dpmm * 2 * float(tDim[0]))
     posys = float(dpmm * 2 * float(tDim[1]))
     StartPoint = QPointF( posxs, posys)
@@ -2463,7 +2464,7 @@ def MakeARROW(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     #ou
     #composerArrow = QgsComposerArrow(c)
     #composerArrow.setSceneRect(QRectF(posxs,  posys, posxe, posye))
-    if wpos == (len(zlistCompo)-1): return wpos+1    
+    if wpos == (len(zlistCompo)-1): return wpos+1
     zLineColor = Qt.black
     zLineSize = "1.0"
 
@@ -2497,10 +2498,10 @@ def MakeLEGEND(self, c, composerView, posx, posy, zStyleBrush, zFillColor, zLine
     layerFont = MakeFONT('Arial',8, True, False, False, False, 0)
     itemFont = MakeFONT('Arial',8, False, False, False, False, 0)
     composerLegend.adjustBoxSize()
-    composerLegend.setItemPosition(posx, posy) 
+    composerLegend.setItemPosition(posx, posy)
     composerLegend.setItemFont(itemFont)
     composerLegend.setLayerFont(layerFont)
-    composerLegend.setTitle("L�gende")
+    composerLegend.setTitle("Lï¿½gende")
     composerLegend.setSymbolWidth(6)
     composerLegend.setSymbolHeight(3)
     composerLegend.setLayerSpace(2)
@@ -2511,17 +2512,17 @@ def MakeLEGEND(self, c, composerView, posx, posy, zStyleBrush, zFillColor, zLine
     composerLegend.setZValue(30)
     if zStyleBrush == "-1" : zStyleBrush = "2"
     MakeFRAMEBRUSH(composerLegend, zStyleBrush, zFillColor)
-    MakeFRAMEPEN(composerLegend, "2", zLineColor, zLineSize)    
+    MakeFRAMEPEN(composerLegend, "2", zLineColor, zLineSize)
     c.addComposerLegend(composerLegend)
-    
+
 
 def MakeTABLE(self, c, composerView, posx, posy, w, h, zLayerName, zFillColor, zLineColor):
     isLayer = False
     Layers = self.iface.legendInterface().layers()
-    for layer in Layers:    
+    for layer in Layers:
         if str(layer.name())== zLayerName:
-           isLayer = True 
-           break  
+           isLayer = True
+           break
     if isLayer :
        headerFont = MakeFONT('Arial',10, True, False, False, False, 0)
        font = MakeFONT('Arial',8, True, True, True, False, 2)
@@ -2530,15 +2531,15 @@ def MakeTABLE(self, c, composerView, posx, posy, w, h, zLayerName, zFillColor, z
        composerTable.setVectorLayer(layer)
        composerTable.setMaximumNumberOfFeatures(10)
        composerTable.setDisplayOnlyVisibleFeatures(False)
-       composerTable.setHeaderFont(headerFont) 
+       composerTable.setHeaderFont(headerFont)
        composerTable.setContentFont(font)
        composerTable.setGridColor(zLineColor)
        composerTable.setLineTextDistance(0.26)
        MakeFRAMEBRUSH(composerTable, "2", zFillColor)
        c.addComposerTable(composerTable)
-       
-    
-    
+
+
+
 def MakeNORTHARROW(self, c, composerView, composerMap):
     composerNorthArrow = QgsComposerPicture(c)
     picNorthArrow = QDir.convertSeparators(QDir.cleanPath(QgsApplication.qgisSettingsDirPath() + "/python/plugins/openwor/svg/arrow/north_arrow.svg"))
@@ -2557,26 +2558,26 @@ def MakeSCALEBAR(self, c, composerView, composerMap):
     composerScaleBar = QgsComposerScaleBar(c)
     composerScaleBar.setComposerMap(composerMap)
     composerScaleBar.setFont(scaleFont)
-    #'Single Box', 'Double Box', 'Line Ticks Middle', 'Line Ticks Down', 'Line Ticks Up', 'Numeric' 
+    #'Single Box', 'Double Box', 'Line Ticks Middle', 'Line Ticks Down', 'Line Ticks Up', 'Numeric'
     composerScaleBar.setStyle('Double Box')
     zUnits = int(self.iface.mapCanvas().mapRenderer().destinationCrs().mapUnits())
     zValueScale = round(float(composerMap.extent().width()),4)
     szUnits, zValueUnits, zToto = FixeLibUnits(zUnits, zValueScale, zValueScale)
     composerScaleBar.setUnitLabeling(szUnits)
     composerScaleBar.setNumMapUnitsPerScaleBarUnit(float(zToto))
-    #Emplacement des �tiquettes    
+    #Emplacement des ï¿½tiquettes
     composerScaleBar.setLabelBarSpace(10.0)
     composerScaleBar.setNumSegments(4)
     composerScaleBar.setFrame(0)
-    #taille de la bo�te
-    composerScaleBar.setBoxContentSpace(0.3) 
+    #taille de la boï¿½te
+    composerScaleBar.setBoxContentSpace(0.3)
     composerScaleBar.update()
     composerScaleBar.setItemPosition(10.0, c.paperHeight()-composerScaleBar.height()-25.0)
     MakeFRAMEBRUSH(composerScaleBar, "2", Qt.black)
     c.addComposerScaleBar(composerScaleBar)
     composerScaleBar.setNumUnitsPerSegment(float(zValueScale/10))
-    composerScaleBar.update()    
- 
+    composerScaleBar.update()
+
 
 def MakeOBJECT(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     tpos = -1
@@ -2597,10 +2598,10 @@ def MakeOBJECT(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     elif TypeObject == "RECT": composerShape.setShapeType(1)
     elif TypeObject == "CIRCLE": composerShape.setShapeType(2)
     else : composerShape.setShapeType(0)
-    
+
     c.addComposerShape(composerShape)
 
-    if wpos == (len(zlistCompo)-1): return wpos+1    
+    if wpos == (len(zlistCompo)-1): return wpos+1
     zBrush = "2"
     zFillColor = Qt.white
     zPen = "2"
@@ -2628,7 +2629,7 @@ def MakeOBJECT(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
                   zFillColor = InvRGB(long(vInfos[1]))
 
     MakeFRAMEBRUSH(composerShape, zBrush, zFillColor)
-    MakeFRAMEPEN(composerShape, zPen, zLineColor, zLineSize)              
+    MakeFRAMEPEN(composerShape, zPen, zLineColor, zLineSize)
 
     return mpos, composerShape
 
@@ -2637,7 +2638,7 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     tpos = -1
     isLegend, isAttributTable = False, False
     composerMap = None
-    
+
     stempo = NetStrInfos(Rac.upper(), False, False, False, False, ("CREATE FRAME " ,"(", ")"))
     stempo = stempo.replace(" ",",")
     tDim = stempo.split(",")
@@ -2652,7 +2653,7 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     w = float(dpmm * 2 * (float(tDim[2])-float(tDim[0])))
     h = float(dpmm * 2 * (float(tDim[3])-float(tDim[1])))
 
-    if wpos == (len(zlistCompo)-1): return wpos+1    
+    if wpos == (len(zlistCompo)-1): return wpos+1
     for mpos in range(wpos+1, len(zlistCompo)):
         line = zlistCompo[mpos]
         astring = str(QString.fromLocal8Bit(zlistCompo[mpos]))
@@ -2661,11 +2662,11 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
             if x.startswith('CREATE') or  x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or  x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
                break
             elif x.startswith('TITLE ') :
-               if x.find('L�GENDE')!=-1: isLegend = True
+               if x.find('Lï¿½GENDE')!=-1: isLegend = True
                else :
                   nSTR = NetStrInfos(astring, True, False, False, False, ("Title ","'"))
                   nSTR = nSTR.split(" ")
-                  if nSTR[len(nSTR)-1]=="Donn�es" :
+                  if nSTR[len(nSTR)-1]=="Donnï¿½es" :
                      zLayerName = nSTR[0]
                      isAttributTable = True
             else :
@@ -2679,7 +2680,7 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
                   vInfos = zInfos.split(",")
                   zLineSize = AdapteRatioMapInfo(float(vInfos[0]), True, False)
                   zPen = str(vInfos[1])
-                  zLineColor = InvRGB(long(vInfos[2]))                 
+                  zLineColor = InvRGB(long(vInfos[2]))
 
     if not isLegend and not isAttributTable:
        composerMap = QgsComposerMap(c,posx,posy,w,h)
@@ -2689,17 +2690,17 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     else:
        if isLegend : MakeLEGEND(self, c, composerView, posx, posy, zBrush, zFillColor, zLineColor, zLineSize)
        if isAttributTable : MakeTABLE(self, c, composerView, posx, posy, w, h, zLayerName, zFillColor, zLineColor)
- 
+
     return mpos, composerMap
 
 
 def FixePaperSize(zPaper):
-    #Les x ne sont pas utilis�s - orientation paysage ici
+    #Les x ne sont pas utilisï¿½s - orientation paysage ici
     formats = { '304' : ('A0',QPrinter.A0, 1189, 841),
                 '305' : ('A1', QPrinter.A1, 841, 594),
                 '66'  : ('A2', QPrinter.A2, 594, 420),
                 '8'   : ('A3', QPrinter.A3, 420, 297),
-                '9'   : ('A4', QPrinter.A4, 297, 210), 
+                '9'   : ('A4', QPrinter.A4, 297, 210),
                 '11'  : ('A5', QPrinter.A5, 210, 148),
                 '70'  : ('A6', QPrinter.A6, 148, 105),
                 'x0'  : ('A7', QPrinter.A7, 105, 74),
@@ -2709,7 +2710,7 @@ def FixePaperSize(zPaper):
                 '307' : ('B2', QPrinter.B2, 707, 500),
                 '308' : ('B3', QPrinter.B3, 500, 353),
                 '12'  : ('B4', QPrinter.B4, 353, 250),
-                '13'  : ('B5', QPrinter.B5, 250, 176), 
+                '13'  : ('B5', QPrinter.B5, 250, 176),
                 '88'  : ('B6', QPrinter.B6, 176,121),
                 '28'  : ('C5E', QPrinter.C5E, 228.9, 162),
                 'x4'  : ('Comm10E', QPrinter.Comm10E, 241, 105),
@@ -2720,7 +2721,7 @@ def FixePaperSize(zPaper):
                 'x9' : ('Legal', QPrinter.Legal, 215.9, 355.6),
                 'x10' : ('Letter', QPrinter.Letter, 216, 279),
                 'x11' : ('Tabloid', QPrinter.Tabloid, 279, 432)
-               } 
+               }
     wpaper, hpaper = 297, 210
     zPaper = str(zPaper)
     if formats.has_key(zPaper):
@@ -2733,12 +2734,12 @@ def FixePaperSize(zPaper):
     return wpaper, hpaper
 
 #-------------------------------------------------
-#FONCTION PRISE EN CHARGE DES QML (style � d�faut)   
+#FONCTION PRISE EN CHARGE DES QML (style ï¿½ dï¿½faut)
 #-------------------------------------------------
 def DefautLayerStyle(self, uLayer):
     HasDefautLayerStyle = True
-    URIDefautLayerStyle = QDir.convertSeparators(QDir.cleanPath(uLayer[0:len(uLayer)-3]+"qml"))    
+    URIDefautLayerStyle = QDir.convertSeparators(QDir.cleanPath(uLayer[0:len(uLayer)-3]+"qml"))
     if not os.path.exists(URIDefautLayerStyle): return False, ""
-    return HasDefautLayerStyle, URIDefautLayerStyle    
-  
-           
+    return HasDefautLayerStyle, URIDefautLayerStyle
+
+

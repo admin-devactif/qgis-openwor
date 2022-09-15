@@ -1,29 +1,25 @@
-# -*- coding: iso-8859-1 -*-
 import sys
 try:
-    from osgeo import gdal
-    from osgeo import osr
-    from osgeo.gdalconst import *
+    from osgeo import gdal, ogr
 except:
     import gdal
-    import osr
-    
-import ConfigParser
-import os, glob
+    import ogr
+
+import configparser
+import os
 import shutil
 import csv
-from ow_utils import *
 
-from symbology import *
+from ow_utils import CountCaractere, NbRowAsciiFILE, NetStrInfos, fGetTypeFile, is_number_float, is_number_int
+from symbology import FixeIndex, GetValueZoom, MakeComposer, RestoreSETTINGS, DefineLayerProj, ChangeSETTINGS, MakeVisibility, GetWMSInfos, Symbo2Vector, SymboRaster, SymboRasterMIG, SymboVectorAna, ValueTypeAna
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
-from qgis.gui import *
+from PyQt4.QtCore import QString, QStringList, QStringListModel, SIGNAL, QSettings, QVariant, Qt, QFile, QTextStream
+from PyQt4.QtGui import QFileDialog, QAbstractItemView, QMessageBox, QApplication, QCursor, QTextCursor, QDialog, QVBoxLayout, QDialogButtonBox, QDockWidget, QTreeWidget
+from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsFeature, QgsMapLayerRegistry, QgsVectorLayer, QgsRasterLayer, QgsPoint, QgsGeometry, QgsField
+from qgis.gui import QgsProjectionSelector, QgsRubberBand
 
-from PyQt4.Qt import *
 
-global findNext 
+global findNext
 global tempLayer
 global subtempLayer
 global nProj4
@@ -31,19 +27,20 @@ global nProj4Infos
 
 findNext = False
 nProj4 = -1
-tempLayer, subtempLayer ="", ""
+tempLayer, subtempLayer = "", ""
+
 
 class Ui_Dialog_OW(object):
     def __init__(self, iface):
         self.iface = iface
-        
+
     def setupUi(self, Dialog):
         global nProj4Infos
 
         Dialog.setObjectName("DialogOW")
-        Dialog.setMinimumSize(QtCore.QSize(728,540))
-        Dialog.setMaximumSize(QtCore.QSize(728,540))
-        Dialog.resize(728,500)
+        Dialog.setMinimumSize(QtCore.QSize(728, 540))
+        Dialog.setMaximumSize(QtCore.QSize(728, 540))
+        Dialog.resize(728, 500)
 
         self.masterLayout = QtGui.QVBoxLayout(Dialog)
         self.masterLayout.setObjectName("masterLayout")
@@ -52,13 +49,13 @@ class Ui_Dialog_OW(object):
         self.widget.setMinimumSize(QtCore.QSize(700, 70))
         self.widget.setMaximumSize(QtCore.QSize(700, 70))
         self.widget.setObjectName("widget")
-        self.horizontalLayout = QtGui.QHBoxLayout(Dialog) 
+        self.horizontalLayout = QtGui.QHBoxLayout(Dialog)
         self.horizontalLayout.setObjectName("horizontalLayout")
 
         self.labelImage = QtGui.QLabel(self.widget)
         self.labelImage.setMinimumSize(QtCore.QSize(50, 50))
         self.labelImage.setMaximumSize(QtCore.QSize(50, 50))
-        self.labelImage.setGeometry(QtCore.QRect(10,15,50,50))
+        self.labelImage.setGeometry(QtCore.QRect(10, 15, 50, 50))
 
         myDefPath = getThemeIcon("selectplus.png")
         carIcon = QtGui.QImage(myDefPath)
@@ -69,32 +66,31 @@ class Ui_Dialog_OW(object):
         self.TxtFile = QtGui.QTextEdit(self.widget)
         self.TxtFile.setMinimumSize(QtCore.QSize(570, 40))
         self.TxtFile.setMaximumSize(QtCore.QSize(570, 40))
-        self.TxtFile.setGeometry(QtCore.QRect(70,10,570,40))
+        self.TxtFile.setGeometry(QtCore.QRect(70, 10, 570, 40))
         self.TxtFile.setAcceptRichText(False)
         self.TxtFile.setReadOnly(True)
         self.TxtFile.setObjectName("TxtFile")
         self.TxtFile.setPlainText("")
         self.horizontalLayout.addWidget(self.TxtFile)
-        
+
         self.BOpenFile = QtGui.QPushButton(self.widget)
         self.BOpenFile.setMinimumSize(QtCore.QSize(50, 20))
         self.BOpenFile.setMaximumSize(QtCore.QSize(50, 20))
-        self.BOpenFile.setGeometry(QtCore.QRect(650,10,50,20))
+        self.BOpenFile.setGeometry(QtCore.QRect(650, 10, 50, 20))
         self.BOpenFile.setObjectName("BOpenFile")
         self.horizontalLayout.addWidget(self.BOpenFile)
 
         self.labelprogressBar = QtGui.QLabel(self.widget)
         self.labelprogressBar.setMinimumSize(QtCore.QSize(70, 20))
         self.labelprogressBar.setMaximumSize(QtCore.QSize(70, 20))
-        self.labelprogressBar.setGeometry(QtCore.QRect(70,50,70,20))
+        self.labelprogressBar.setGeometry(QtCore.QRect(70, 50, 70, 20))
         self.labelprogressBar.setObjectName("labelprogressBar")
-        
 
         self.progressBar = QtGui.QProgressBar(Dialog)
         self.progressBar.setProperty("value", QtCore.QVariant(0))
         self.progressBar.setMinimumSize(QtCore.QSize(160, 15))
         self.progressBar.setMaximumSize(QtCore.QSize(160, 15))
-        self.progressBar.setGeometry(QtCore.QRect(130,55,160,15))
+        self.progressBar.setGeometry(QtCore.QRect(130, 55, 160, 15))
         self.progressBar.setAlignment(QtCore.Qt.AlignCenter)
         self.progressBar.setTextVisible(True)
         self.progressBar.setObjectName("progressBar")
@@ -107,15 +103,14 @@ class Ui_Dialog_OW(object):
         self.labelprogressBarL = QtGui.QLabel(self.widget)
         self.labelprogressBarL.setMinimumSize(QtCore.QSize(70, 20))
         self.labelprogressBarL.setMaximumSize(QtCore.QSize(70, 20))
-        self.labelprogressBarL.setGeometry(QtCore.QRect(300,50,70,20))
+        self.labelprogressBarL.setGeometry(QtCore.QRect(300, 50, 70, 20))
         self.labelprogressBarL.setObjectName("labelprogressBarL")
-
 
         self.progressBarL = QtGui.QProgressBar(Dialog)
         self.progressBarL.setProperty("value", QtCore.QVariant(0))
         self.progressBarL.setMinimumSize(QtCore.QSize(280, 15))
         self.progressBarL.setMaximumSize(QtCore.QSize(280, 15))
-        self.progressBarL.setGeometry(QtCore.QRect(360,55,0,15))
+        self.progressBarL.setGeometry(QtCore.QRect(360, 55, 0, 15))
         self.progressBarL.setAlignment(QtCore.Qt.AlignCenter)
         self.progressBarL.setTextVisible(True)
         self.progressBarL.setObjectName("progressBarL")
@@ -124,13 +119,12 @@ class Ui_Dialog_OW(object):
             """QProgressBar::chunk {background-color: #6C96C6; width: 10px; margin: 0.5px;}"""
         )
         self.horizontalLayout.addWidget(self.progressBarL)
-       
 
         self.tabWidget = QtGui.QTabWidget(Dialog)
         self.tabWidget.setObjectName("tabWidget")
         self.tabWidget.setMinimumSize(QtCore.QSize(690, 440))
         self.tabWidget.setMaximumSize(QtCore.QSize(690, 440))
-        self.tabWidget.setGeometry(QtCore.QRect(10, 80, 690,440))
+        self.tabWidget.setGeometry(QtCore.QRect(10, 80, 690, 440))
 
         self.tab1 = QtGui.QWidget()
         self.tab1.setObjectName("tab1")
@@ -148,18 +142,17 @@ class Ui_Dialog_OW(object):
         self.labelMap = QtGui.QLabel(self.tab1)
         self.labelMap.setMinimumSize(QtCore.QSize(120, 20))
         self.labelMap.setMaximumSize(QtCore.QSize(120, 20))
-        self.labelMap.setGeometry(QtCore.QRect(10,20,120,20))
+        self.labelMap.setGeometry(QtCore.QRect(10, 20, 120, 20))
         self.labelMap.setObjectName("labelMap")
         self.sgridLayout10.addWidget(self.labelMap)
 
         self.comboMap = QtGui.QComboBox(self.tab1)
         self.comboMap.setMinimumSize(QtCore.QSize(140, 20))
         self.comboMap.setMaximumSize(QtCore.QSize(140, 20))
-        self.comboMap.setGeometry(QtCore.QRect(125, 20, 140,20))
+        self.comboMap.setGeometry(QtCore.QRect(125, 20, 140, 20))
         self.comboMap.setObjectName("comboMap")
         self.sgridLayout10.addWidget(self.comboMap)
 
-        
         #******************************************
         # CONTENU DES CARTES A CHARGER            :
         #******************************************
@@ -167,7 +160,7 @@ class Ui_Dialog_OW(object):
         self.ViewTAB.setObjectName("ViewTAB")
         self.ViewTAB.setMinimumSize(QtCore.QSize(360, 90))
         self.ViewTAB.setMaximumSize(QtCore.QSize(360, 90))
-        self.ViewTAB.setGeometry(QtCore.QRect(280,20,360, 90))
+        self.ViewTAB.setGeometry(QtCore.QRect(280, 20, 360, 90))
         self.sgridLayout10.addWidget(self.ViewTAB)
 
         #******************************************
@@ -176,7 +169,7 @@ class Ui_Dialog_OW(object):
         self.labelInfoLayerMap = QtGui.QLabel(self.tab1)
         self.labelInfoLayerMap.setMinimumSize(QtCore.QSize(140, 20))
         self.labelInfoLayerMap.setMaximumSize(QtCore.QSize(140, 20))
-        self.labelInfoLayerMap.setGeometry(QtCore.QRect(10,100,140,20))
+        self.labelInfoLayerMap.setGeometry(QtCore.QRect(10, 100, 140, 20))
         self.labelInfoLayerMap.setObjectName("labelInfoLayerMap")
         self.sgridLayout10.addWidget(self.labelInfoLayerMap)
 
@@ -186,11 +179,12 @@ class Ui_Dialog_OW(object):
         self.ViewLAYERMAP = QtGui.QTextEdit(self.tab1)
         self.ViewLAYERMAP.setUndoRedoEnabled(False)
         self.ViewLAYERMAP.setReadOnly(True)
-        self.ViewLAYERMAP.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse|QtCore.Qt.TextSelectableByMouse)
+        self.ViewLAYERMAP.setTextInteractionFlags(
+            QtCore.Qt.LinksAccessibleByMouse | QtCore.Qt.TextSelectableByMouse)
         self.ViewLAYERMAP.setObjectName("ViewLAYERMAP")
         self.ViewLAYERMAP.setMinimumSize(QtCore.QSize(630, 100))
         self.ViewLAYERMAP.setMaximumSize(QtCore.QSize(630, 100))
-        self.ViewLAYERMAP.setGeometry(QtCore.QRect(10,120,630, 100))
+        self.ViewLAYERMAP.setGeometry(QtCore.QRect(10, 120, 630, 100))
         self.sgridLayout10.addWidget(self.ViewLAYERMAP)
 
         #******************************************
@@ -199,14 +193,14 @@ class Ui_Dialog_OW(object):
         self.labelComposer = QtGui.QLabel(self.tab1)
         self.labelComposer.setMinimumSize(QtCore.QSize(100, 20))
         self.labelComposer.setMaximumSize(QtCore.QSize(100, 20))
-        self.labelComposer.setGeometry(QtCore.QRect(10,230,100,20))
+        self.labelComposer.setGeometry(QtCore.QRect(10, 230, 100, 20))
         self.labelComposer.setObjectName("labelComposer")
         self.sgridLayout10.addWidget(self.labelComposer)
 
         self.comboComposer = QtGui.QComboBox(self.tab1)
         self.comboComposer.setMinimumSize(QtCore.QSize(140, 20))
         self.comboComposer.setMaximumSize(QtCore.QSize(140, 20))
-        self.comboComposer.setGeometry(QtCore.QRect(125, 230, 140,20))
+        self.comboComposer.setGeometry(QtCore.QRect(125, 230, 140, 20))
         self.comboComposer.setObjectName("comboComposer")
         self.sgridLayout10.addWidget(self.comboComposer)
 
@@ -216,7 +210,7 @@ class Ui_Dialog_OW(object):
         self.labelOptions = QtGui.QLabel(self.tab1)
         self.labelOptions.setMinimumSize(QtCore.QSize(140, 20))
         self.labelOptions.setMaximumSize(QtCore.QSize(140, 20))
-        self.labelOptions.setGeometry(QtCore.QRect(10,260,140,20))
+        self.labelOptions.setGeometry(QtCore.QRect(10, 260, 140, 20))
         self.labelOptions.setObjectName("labelInfoLayerMap")
         self.sgridLayout10.addWidget(self.labelOptions)
 
@@ -224,31 +218,30 @@ class Ui_Dialog_OW(object):
         # OPTIONS                                 :
         #******************************************
         self.CkBx_Surcharge = QtGui.QCheckBox(self.tab1)
-        self.CkBx_Surcharge.setGeometry(QtCore.QRect(125,260,300,25))
+        self.CkBx_Surcharge.setGeometry(QtCore.QRect(125, 260, 300, 25))
         self.CkBx_Surcharge.setObjectName("CkBx_Surcharge")
         self.sgridLayout10.addWidget(self.CkBx_Surcharge)
 
         self.CkBx_ForceUnitsMap = QtGui.QCheckBox(self.tab1)
-        self.CkBx_ForceUnitsMap.setGeometry(QtCore.QRect(125,280,300,25))
+        self.CkBx_ForceUnitsMap.setGeometry(QtCore.QRect(125, 280, 300, 25))
         self.CkBx_ForceUnitsMap.setObjectName("CkBx_ForceUnitsMap")
         self.sgridLayout10.addWidget(self.CkBx_ForceUnitsMap)
 
         self.CkBx_UniProj = QtGui.QCheckBox(self.tab1)
-        self.CkBx_UniProj.setGeometry(QtCore.QRect(125,305,120,25))
+        self.CkBx_UniProj.setGeometry(QtCore.QRect(125, 305, 120, 25))
         self.CkBx_UniProj.setObjectName("CkBx_UniProj")
         self.sgridLayout10.addWidget(self.CkBx_UniProj)
 
         self.TxtProjMap = QtGui.QTextEdit(self.tab1)
         self.TxtProjMap.setMinimumSize(QtCore.QSize(390, 25))
         self.TxtProjMap.setMaximumSize(QtCore.QSize(390, 25))
-        self.TxtProjMap.setGeometry(QtCore.QRect(250, 305 , 390, 25))
+        self.TxtProjMap.setGeometry(QtCore.QRect(250, 305, 390, 25))
         self.TxtProjMap.setAcceptRichText(False)
         self.TxtProjMap.setReadOnly(True)
         self.TxtProjMap.setEnabled(False)
         self.TxtProjMap.setObjectName("TxtProjMap")
         self.TxtProjMap.setPlainText("")
         self.sgridLayout10.addWidget(self.TxtProjMap)
-
 
         zProjTemp = self.iface.mapCanvas().mapRenderer().destinationCrs()
         nProj4 = QString(zProjTemp.toProj4())
@@ -258,57 +251,56 @@ class Ui_Dialog_OW(object):
         self.buttonProjMap = QtGui.QPushButton(self.tab1)
         self.buttonProjMap.setMinimumSize(QtCore.QSize(100, 20))
         self.buttonProjMap.setMaximumSize(QtCore.QSize(100, 20))
-        self.buttonProjMap.setGeometry(QtCore.QRect(10, 305, 140,20))
+        self.buttonProjMap.setGeometry(QtCore.QRect(10, 305, 140, 20))
         self.buttonProjMap.setObjectName("buttonProjMap")
         self.sgridLayout10.addWidget(self.buttonProjMap)
 
-        
         self.CkBx_NoZoomStep = QtGui.QCheckBox(self.tab1)
-        self.CkBx_NoZoomStep.setGeometry(QtCore.QRect(125,330,200,25))
+        self.CkBx_NoZoomStep.setGeometry(QtCore.QRect(125, 330, 200, 25))
         self.CkBx_NoZoomStep.setObjectName("CkBx_NoZoomStep")
         self.sgridLayout10.addWidget(self.CkBx_NoZoomStep)
 
         self.CkBx_InterActiveMode = QtGui.QCheckBox(self.tab1)
-        self.CkBx_InterActiveMode.setGeometry(QtCore.QRect(125,355,200,25))
+        self.CkBx_InterActiveMode.setGeometry(QtCore.QRect(125, 355, 200, 25))
         self.CkBx_InterActiveMode.setObjectName("CkBx_InterActiveMode")
         self.sgridLayout10.addWidget(self.CkBx_InterActiveMode)
-
 
         #******************************************
         # BOUTON CHARGER CARTE ET MISE EN PAGE    :
         #******************************************
-        self.buttonMap = QtGui.QPushButton(self.tab1)    
+        self.buttonMap = QtGui.QPushButton(self.tab1)
         self.buttonMap.setMinimumSize(QtCore.QSize(200, 30))
         self.buttonMap.setMaximumSize(QtCore.QSize(200, 30))
-        self.buttonMap.setGeometry(QtCore.QRect(440, 380, 200,30))
+        self.buttonMap.setGeometry(QtCore.QRect(440, 380, 200, 30))
         self.buttonMap.setObjectName("buttonMap")
         self.sgridLayout10.addWidget(self.buttonMap)
         self.tabWidget.addTab(self.tab1, "")
 
         #******************************************
         # ONGLET VUE MOTEUR OPENWOR               :
-        #******************************************     
+        #******************************************
         self.tab2 = QtGui.QWidget()
         self.tab2.setObjectName("tab2")
         self.gridLayout2 = QtGui.QGridLayout(self.tab2)
         self.gridLayout2.setObjectName("gridLayout2")
- 
+
         self.ViewLOG = QtGui.QTextEdit(self.tab2)
         self.ViewLOG.setUndoRedoEnabled(False)
         self.ViewLOG.setReadOnly(True)
-        self.ViewLOG.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse|QtCore.Qt.TextSelectableByMouse)
+        self.ViewLOG.setTextInteractionFlags(
+            QtCore.Qt.LinksAccessibleByMouse | QtCore.Qt.TextSelectableByMouse)
         self.ViewLOG.setObjectName("ViewLOG")
         self.gridLayout2.addWidget(self.ViewLOG)
 
         self.TreeView = QtGui.QTreeView(self.tab2)
         self.TreeView.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
         self.TreeView.setObjectName("TreeView")
-    
-        myPathIconvLine = getThemeIcon("vline.png") 
+
+        myPathIconvLine = getThemeIcon("vline.png")
         myPathIconBranchMore = getThemeIcon("branch-more.png")
-        myPathIconBranchEnd = getThemeIcon("branch-end.png") 
+        myPathIconBranchEnd = getThemeIcon("branch-end.png")
         myPathIconBranchClosed = getThemeIcon("branch-closed.png")
-        myPathIconBranchOpen = getThemeIcon("branch-open.png")             
+        myPathIconBranchOpen = getThemeIcon("branch-open.png")
 
         self.TreeView.setStyleSheet(
             """QTreeView  {show-decoration-selected: 1;}"""
@@ -319,11 +311,16 @@ class Ui_Dialog_OW(object):
             """QTreeView::item:selected:active {background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6ea1f1, stop: 1 #567dbc);}"""
             """QTreeView::item:selected:!active  { background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6b9be8, stop: 1 #577fbf);}"""
             """QTreeView::item {margin: 5px;}"""
-            """QTreeView::branch:has-siblings:!adjoins-item  {border-image: url("""+myPathIconvLine+""") 0;}"""
-            """QTreeView::branch:has-siblings:adjoins-item  {border-image: url("""+myPathIconBranchMore+""") 0;}"""
-            """QTreeView::branch:!has-children:!has-siblings:adjoins-item  {border-image: url("""+myPathIconBranchEnd+""") 0;}"""
-            """QTreeView::branch:has-children:!has-siblings:closed, QTreeView::branch:closed:has-children:has-siblings  {border-image: none; image: url("""+myPathIconBranchClosed+""");}"""
-            """QTreeView::branch:open:has-children:!has-siblings,QTreeView::branch:open:has-children:has-siblings   { border-image: none; image: url("""+myPathIconBranchOpen+""");}"""
+            """QTreeView::branch:has-siblings:!adjoins-item  {border-image: url(""" +
+            myPathIconvLine+""") 0;}"""
+            """QTreeView::branch:has-siblings:adjoins-item  {border-image: url(""" +
+            myPathIconBranchMore+""") 0;}"""
+            """QTreeView::branch:!has-children:!has-siblings:adjoins-item  {border-image: url(""" +
+            myPathIconBranchEnd+""") 0;}"""
+            """QTreeView::branch:has-children:!has-siblings:closed, QTreeView::branch:closed:has-children:has-siblings  {border-image: none; image: url(""" +
+            myPathIconBranchClosed+""");}"""
+            """QTreeView::branch:open:has-children:!has-siblings,QTreeView::branch:open:has-children:has-siblings   { border-image: none; image: url(""" +
+            myPathIconBranchOpen+""");}"""
         )
 
         self.TreeView.setHeaderHidden(True)
@@ -332,28 +329,26 @@ class Ui_Dialog_OW(object):
         self.gridLayout2.addWidget(self.TreeView)
         self.tabWidget.addTab(self.tab2, "")
 
-   
-
         #******************************************
         # ONGLET DOCUMENT MAPINFO                 :
-        #****************************************** 
+        #******************************************
         self.tab3 = QtGui.QWidget()
         self.tab3.setObjectName("tab3")
         self.gridLayout3 = QtGui.QGridLayout(self.tab3)
         self.gridLayout3.setObjectName("gridLayout3")
- 
+
         self.ViewFILE = QtGui.QTextEdit(self.tab3)
         self.ViewFILE.setUndoRedoEnabled(False)
         self.ViewFILE.setReadOnly(True)
-        self.ViewFILE.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse|QtCore.Qt.TextSelectableByMouse)
+        self.ViewFILE.setTextInteractionFlags(
+            QtCore.Qt.LinksAccessibleByMouse | QtCore.Qt.TextSelectableByMouse)
         self.ViewFILE.setObjectName("ViewFILE")
         self.gridLayout3.addWidget(self.ViewFILE, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tab3, "")
 
-
         #***************************************************
         # ONGLET RECHERCE DOCUMENT MAPINFO                 :
-        #*************************************************** 
+        #***************************************************
         self.tab4 = QtGui.QWidget()
         self.tab4.setObjectName("tab4")
         self.gridLayout4 = QtGui.QGridLayout(self.tab4)
@@ -362,53 +357,52 @@ class Ui_Dialog_OW(object):
         self.labelRep = QtGui.QLabel(self.tab4)
         self.labelRep.setMinimumSize(QtCore.QSize(200, 20))
         self.labelRep.setMaximumSize(QtCore.QSize(200, 20))
-        self.labelRep.setGeometry(QtCore.QRect(0,0,200,20))
+        self.labelRep.setGeometry(QtCore.QRect(0, 0, 200, 20))
         self.labelRep.setObjectName("labelRep")
         self.gridLayout4.addWidget(self.labelRep)
 
         self.TxtRep = QtGui.QTextEdit(self.tab4)
         self.TxtRep.setMinimumSize(QtCore.QSize(660, 25))
         self.TxtRep.setMaximumSize(QtCore.QSize(660, 25))
-        self.TxtRep.setGeometry(QtCore.QRect(0,0,660,25))
+        self.TxtRep.setGeometry(QtCore.QRect(0, 0, 660, 25))
         self.TxtRep.setAcceptRichText(False)
         self.TxtRep.setReadOnly(True)
         self.TxtRep.setObjectName("TxtRep")
         self.TxtRep.setPlainText("")
         self.gridLayout4.addWidget(self.TxtRep)
-        
+
         self.BDefineRep = QtGui.QPushButton(self.tab4)
         self.BDefineRep.setMinimumSize(QtCore.QSize(100, 20))
         self.BDefineRep.setMaximumSize(QtCore.QSize(100, 20))
-        self.BDefineRep.setGeometry(QtCore.QRect(510,10,100,20))
+        self.BDefineRep.setGeometry(QtCore.QRect(510, 10, 100, 20))
         self.BDefineRep.setObjectName("BDefineRep")
         self.gridLayout4.addWidget(self.BDefineRep)
 
         self.ExeSearchFILE = QtGui.QPushButton(self.tab4)
         self.ExeSearchFILE.setMinimumSize(QtCore.QSize(100, 20))
         self.ExeSearchFILE.setMaximumSize(QtCore.QSize(100, 20))
-        self.ExeSearchFILE.setGeometry(QtCore.QRect(560,10,100,20))
+        self.ExeSearchFILE.setGeometry(QtCore.QRect(560, 10, 100, 20))
         self.ExeSearchFILE.setObjectName("ExeSearchFILE")
         self.gridLayout4.addWidget(self.ExeSearchFILE)
 
         self.labelSearchFILE = QtGui.QLabel(self.tab4)
         self.labelSearchFILE.setMinimumSize(QtCore.QSize(660, 20))
         self.labelSearchFILE.setMaximumSize(QtCore.QSize(660, 20))
-        self.labelSearchFILE.setGeometry(QtCore.QRect(0,0,660,20))
+        self.labelSearchFILE.setGeometry(QtCore.QRect(0, 0, 660, 20))
         self.labelSearchFILE.setObjectName("labelSearchFILE")
-        self.gridLayout4.addWidget(self.labelSearchFILE)        
+        self.gridLayout4.addWidget(self.labelSearchFILE)
 
         self.SearchFILE = QtGui.QListWidget(self.tab4)
         self.SearchFILE.setObjectName("SearchFILE")
         self.SearchFILE.setMinimumSize(QtCore.QSize(660, 260))
         self.SearchFILE.setMaximumSize(QtCore.QSize(660, 260))
-        self.SearchFILE.setGeometry(QtCore.QRect(0,0, 660, 260))         
+        self.SearchFILE.setGeometry(QtCore.QRect(0, 0, 660, 260))
         self.gridLayout4.addWidget(self.SearchFILE)
         self.tabWidget.addTab(self.tab4, "")
-    
 
         #******************************************
         # ONGLET WARNINGS                         :
-        #****************************************** 
+        #******************************************
         self.tab5 = QtGui.QWidget()
         self.tab5.setObjectName("tab5")
         self.gridLayout5 = QtGui.QGridLayout(self.tab5)
@@ -417,7 +411,8 @@ class Ui_Dialog_OW(object):
         self.Warnings = QtGui.QTextEdit(self.tab5)
         self.Warnings.setUndoRedoEnabled(False)
         self.Warnings.setReadOnly(True)
-        self.Warnings.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse|QtCore.Qt.TextSelectableByMouse)
+        self.Warnings.setTextInteractionFlags(
+            QtCore.Qt.LinksAccessibleByMouse | QtCore.Qt.TextSelectableByMouse)
         self.Warnings.setObjectName("Warnings")
         self.gridLayout5.addWidget(self.Warnings, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tab5, "")
@@ -426,87 +421,104 @@ class Ui_Dialog_OW(object):
         self.ImgWarnings.setMinimumSize(QtCore.QSize(165, 220))
         self.ImgWarnings.setMaximumSize(QtCore.QSize(165, 220))
         self.ImgWarnings.setGeometry(QtCore.QRect(480, 10, 165, 220))
-        carIcon = QtGui.QImage(getThemeIcon("concepteur.png")) 
+        carIcon = QtGui.QImage(getThemeIcon("concepteur.png"))
         self.ImgWarnings.setPixmap(QtGui.QPixmap.fromImage(carIcon))
         self.gridLayout5.addWidget(self.Warnings)
 
         self.FixeTxtLabel(Dialog)
         self.MakeWarnings()
 
-        QtCore.QObject.connect(self.BOpenFile, SIGNAL("clicked()"), self.LoadWOR)
-        QtCore.QObject.connect(self.buttonMap, SIGNAL("clicked()"), self.MakeMap)
-        QtCore.QObject.connect(self.CkBx_UniProj, SIGNAL("clicked()"), self.FixeUniProjection)
-        QtCore.QObject.connect(self.CkBx_InterActiveMode, SIGNAL("clicked()"), self.InterActiveMode)
-        QtCore.QObject.connect(self.comboMap, SIGNAL("currentIndexChanged(QString)"), self.MakeListTables)
-        QtCore.QObject.connect(self.buttonProjMap, SIGNAL("clicked()"), self.CallQgsProjectionSelector)
-        QtCore.QObject.connect(self.ViewTAB, SIGNAL("doubleClicked(QModelIndex)"), self.ReturnInfosLayerMap)
-        QtCore.QObject.connect(self.TreeView, SIGNAL("doubleClicked(QModelIndex)"), self.FixeInfosViewHTML)
-        
-        QtCore.QObject.connect(self.BDefineRep, SIGNAL("clicked()"), self.FixeREPSearchFILE)
-        QtCore.QObject.connect(self.ExeSearchFILE, SIGNAL("clicked()"), self.DoREPSearchFILE)
-        QtCore.QObject.connect(self.SearchFILE, SIGNAL("doubleClicked(QModelIndex)"), self.ChangeWOR)
-        
+        QtCore.QObject.connect(
+            self.BOpenFile, SIGNAL("clicked()"), self.LoadWOR)
+        QtCore.QObject.connect(
+            self.buttonMap, SIGNAL("clicked()"), self.MakeMap)
+        QtCore.QObject.connect(self.CkBx_UniProj, SIGNAL(
+            "clicked()"), self.FixeUniProjection)
+        QtCore.QObject.connect(self.CkBx_InterActiveMode, SIGNAL(
+            "clicked()"), self.InterActiveMode)
+        QtCore.QObject.connect(self.comboMap, SIGNAL(
+            "currentIndexChanged(QString)"), self.MakeListTables)
+        QtCore.QObject.connect(self.buttonProjMap, SIGNAL(
+            "clicked()"), self.CallQgsProjectionSelector)
+        QtCore.QObject.connect(self.ViewTAB, SIGNAL(
+            "doubleClicked(QModelIndex)"), self.ReturnInfosLayerMap)
+        QtCore.QObject.connect(self.TreeView, SIGNAL(
+            "doubleClicked(QModelIndex)"), self.FixeInfosViewHTML)
+
+        QtCore.QObject.connect(self.BDefineRep, SIGNAL(
+            "clicked()"), self.FixeREPSearchFILE)
+        QtCore.QObject.connect(self.ExeSearchFILE, SIGNAL(
+            "clicked()"), self.DoREPSearchFILE)
+        QtCore.QObject.connect(self.SearchFILE, SIGNAL(
+            "doubleClicked(QModelIndex)"), self.ChangeWOR)
+
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
-        Dialog.setTabOrder(self.TxtFile,self.BOpenFile)
+        Dialog.setTabOrder(self.TxtFile, self.BOpenFile)
 
-
-        savefile = os.path.join(os.path.dirname(__file__),"savesession.ini")
+        savefile = os.path.join(os.path.dirname(__file__), "savesession.ini")
         if os.path.exists(savefile):
-           p = ConfigParser.ConfigParser()
+           p = configparser.ConfigParser()
            p.read(savefile)
-           fileName = str(p.get('general','filename'))
+           fileName = str(p.get('general', 'filename'))
            fileName = fileName.rstrip()
 
-           ssurcharge = str(p.get('general','surcharge'))
-           self.CkBx_Surcharge.setChecked((ssurcharge=="oui"))
-           
-           szoomstep = str(p.get('general','zoomstep'))
-           self.CkBx_NoZoomStep.setChecked((szoomstep=="oui"))
+           ssurcharge = str(p.get('general', 'surcharge'))
+           self.CkBx_Surcharge.setChecked((ssurcharge == "oui"))
 
-           sinteractivemode = str(p.get('general','interactivemode'))
-           self.CkBx_InterActiveMode.setChecked((sinteractivemode=="oui"))           
+           szoomstep = str(p.get('general', 'zoomstep'))
+           self.CkBx_NoZoomStep.setChecked((szoomstep == "oui"))
+
+           sinteractivemode = str(p.get('general', 'interactivemode'))
+           self.CkBx_InterActiveMode.setChecked((sinteractivemode == "oui"))
 
            zProjTemp = self.iface.mapCanvas().mapRenderer().destinationCrs()
            self.TxtProjMap.setText(str(zProjTemp.description()))
            nProj4 = int(zProjTemp.srsid())
 
            zTempo = str(zProjTemp.authid())
-           zTempo.replace("EPSG:","") 
-           nProj4Infos = str(zProjTemp.description()) + "|" + str(nProj4) + "|" +  zTempo.replace("EPSG:","") + "|" + QString(zProjTemp.toProj4())
-           self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0) 
+           zTempo.replace("EPSG:", "")
+           nProj4Infos = str(zProjTemp.description()) + "|" + str(nProj4) + "|" + \
+               zTempo.replace("EPSG:", "") + "|" + QString(zProjTemp.toProj4())
+           self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0)
 
-           sprojunit = str(p.get('general','projunit'))
-           self.CkBx_UniProj.setChecked((sprojunit=="oui")) 
-           self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(1) if sprojunit=="oui" else self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0)
+           sprojunit = str(p.get('general', 'projunit'))
+           self.CkBx_UniProj.setChecked((sprojunit == "oui"))
+           self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(
+               1) if sprojunit == "oui" else self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0)
 
-           sforceUnitsMap = str(p.get('general','forceunitsmap'))
-           self.CkBx_ForceUnitsMap.setChecked((sforceUnitsMap=="0"))
+           sforceUnitsMap = str(p.get('general', 'forceunitsmap'))
+           self.CkBx_ForceUnitsMap.setChecked((sforceUnitsMap == "0"))
 
            if os.path.exists(fileName):
               self.TxtFile.setPlainText(fileName)
-              mystr = AnalyseWOR(self, fileName)           
+              mystr = AnalyseWOR(self, fileName)
 
-        if QSettings().value("Qgis/use_symbology_ng", QVariant("")).toBool() == False : QSettings().setValue("Qgis/use_symbology_ng", QVariant(True)) 
-           
+        if QSettings().value("Qgis/use_symbology_ng", QVariant("")).toBool() == False:
+            QSettings().setValue("Qgis/use_symbology_ng", QVariant(True))
+
         MajCtrlButtonMap(self)
         VerifSVGPaths()
 
         zPath = os.path.dirname(__file__)
-        zPath = zPath.replace("\\","/")        
+        zPath = zPath.replace("\\", "/")
         zPathDir = os.path.join(zPath + "/myworks/")
-        if not os.path.exists(zPathDir) : os.makedirs(zPathDir)
-
+        if not os.path.exists(zPathDir):
+            os.makedirs(zPathDir)
 
     def FixeREPSearchFILE(self):
-        InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText()=="" else os.path.dirname(str(self.TxtFile.toPlainText())) 
-        inputDir = QFileDialog.getExistingDirectory(self, "Sélectionner le dossier pour la recherche", InitDir, QFileDialog.ShowDirsOnly|QFileDialog.DontResolveSymlinks)
+        InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText(
+        ) == "" else os.path.dirname(str(self.TxtFile.toPlainText()))
+        inputDir = QFileDialog.getExistingDirectory(
+            self, "SÃ©lectionner le dossier pour la recherche", InitDir, QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
         if inputDir.isEmpty(): return
         self.TxtRep.setPlainText(inputDir)
 
     def DoREPSearchFILE(self):
         zRep = self.TxtRep.toPlainText()
-        if zRep == "":  QMessageBox.information(None,"Fonction de recherche", "Aucun dossier à analyser !")
+        if zRep == "":
+            QMessageBox.information(
+                None, "Fonction de recherche", "Aucun dossier Ã  analyser !")
         else :
             if os.path.exists(zRep) :
                zRep = str(CorrigePath(zRep))
@@ -514,7 +526,8 @@ class Ui_Dialog_OW(object):
                self.SearchFILE.clear()
                QApplication.setOverrideCursor( QCursor( Qt.WaitCursor ) )
                listdirectory(self, zRep.encode("utf-8"))
-               self.labelSearchFILE.setText(str(self.SearchFILE.count()) + " résultat(s).")
+               self.labelSearchFILE.setText(
+                   str(self.SearchFILE.count()) + " rÃ©sultat(s).")
                QApplication.restoreOverrideCursor()
 
     def ChangeWOR(self):
@@ -523,18 +536,18 @@ class Ui_Dialog_OW(object):
            self.TxtFile.setPlainText(zFile)
            mystr = AnalyseWOR(self, zFile)
            MajCtrlButtonMap(self)
-        
- 
+
+
     def CallQgsProjectionSelector(self):
          global nProj4
          global nProj4Infos
-         
-         dialog = SRSDialog() 
+
+         dialog = SRSDialog()
          if dialog.exec_():
             nProj4Infos = str(dialog.epsg())
             lInfosProj4 = nProj4Infos.split("|")
             self.TxtProjMap.setText(str(lInfosProj4[0]))
-            nProj4 = int(lInfosProj4[2]) 
+            nProj4 = int(lInfosProj4[2])
             self.FixenProj4(lInfosProj4[3])
 
 
@@ -547,7 +560,7 @@ class Ui_Dialog_OW(object):
            mystr = AnalyseWOR(self, fileName)
            MajCtrlButtonMap(self)
 
-    
+
     def FindComposer(self, iMap):
         self.comboComposer.clear()
         self.comboComposer.addItem("Aucune mise en page")
@@ -557,24 +570,24 @@ class Ui_Dialog_OW(object):
         if tMap.has_key(zKey):
            zSTR = tMap[zKey].split("|")
            refTitle = zSTR[0]
-      
+
         for key in tComposer.keys():
-            findIndex = -1 
+            findIndex = -1
             zSTR = tComposer[key].split("|")
             for i in range(len(zSTR)):
                 nSTR = str(zSTR[i])
                 if nSTR.find("Title")!=-1:
-                    
+
                    zMap = 'Carte' if len(tMap) == 1 or (self.comboMap.currentIndex()+1 == 1) else 'Carte:'+str(self.comboMap.currentIndex()+1)
-                     
+
                    nSTR = NetStrInfos(nSTR, True, True, False, False, ("Title ","'"))
-                   nSTR = nSTR.split(" ") 
+                   nSTR = nSTR.split(" ")
                    if nSTR[len(nSTR)-1]==zMap:
                       tempo = str(key).replace("COMPOSER","")
                       findIndex = int(tempo)
-                      break                       
-            
-            if findIndex !=-1: self.comboComposer.addItem("Mise en Page "+str(findIndex)) 
+                      break
+
+            if findIndex !=-1: self.comboComposer.addItem("Mise en Page "+str(findIndex))
 
         self.comboComposer.addItem("Mise en Page OpenWor")
         self.comboComposer.setCurrentIndex(0)
@@ -586,7 +599,7 @@ class Ui_Dialog_OW(object):
 
         if len(tMap)>0 :
            iMap = self.comboMap.currentIndex()
-           
+
            if tMap.has_key('MAP'+str(iMap)):
                ic='MAP'+str(iMap)
                cCarte = str(tMap[ic])
@@ -598,7 +611,7 @@ class Ui_Dialog_OW(object):
                    x = stempo.upper()
                    if x.startswith("POSITION"): break
                    else : layero = layero + str(tempo[i])
-                
+
                layero = NetStrInfos(layero, False, True, False, False, ("Map From", "Map from", "MAP FROM","|"))
                ssLayer = layero.split(",")
 
@@ -612,19 +625,19 @@ class Ui_Dialog_OW(object):
                self.ViewTAB.setSelectionMode(QAbstractItemView.SingleSelection)
                self.ViewTAB.setEditTriggers(QAbstractItemView.NoEditTriggers)
                self.ViewLAYERMAP.clear()
-               self.FindComposer(iMap)  
+               self.FindComposer(iMap)
 
 
     def FixeInfosViewHTML(self):
-               global findNext 
+               global findNext
                zItem = self.TreeView.model().itemFromIndex(self.TreeView.currentIndex())
                zInfos = zItem.text()
                #QTextCursor.Start #QTextCursor.End #QTextCursor.PreviousCharacter #QTextCursor.NextCharacter
                self.ViewLOG.moveCursor(QTextCursor.Start) if not findNext else self.ViewLOG.moveCursor(QTextCursor.NextCharacter)
                findNext = True if (self.ViewLOG.find(str(zInfos))) else False
-               
 
-    def ReturnInfosLayerMap(self):                    
+
+    def ReturnInfosLayerMap(self):
                selection = self.ViewTAB.selectionModel()
                indexElementSelectionne = int(selection.currentIndex().row())+1
                global tMap
@@ -632,8 +645,8 @@ class Ui_Dialog_OW(object):
                   iMap = self.comboMap.currentIndex()
                   MyKey = 'MAP'+ str(iMap) + ".LAYER" + str(indexElementSelectionne)
                   if tLayerMap.has_key(MyKey):
-                     self.ViewLAYERMAP.clear()   
-                     self.ViewLAYERMAP.setText(str(tLayerMap[MyKey]))    
+                     self.ViewLAYERMAP.clear()
+                     self.ViewLAYERMAP.setText(str(tLayerMap[MyKey]))
 
     def MakeMap(self):
         global tMap
@@ -642,23 +655,23 @@ class Ui_Dialog_OW(object):
            if tMap.has_key('MAP'+str(iMap)): MakeMapCanvas(self, iMap)
 
            zKey = NetStrInfos(str(self.comboComposer.currentText()), True, True, False, False,())
-           if zKey != "Aucune mise en page": 
+           if zKey != "Aucune mise en page":
                zKey = zKey.replace("Mise en Page ","")
                if zKey == "OpenWor": MakeComposer(self, -1, "")
                elif tComposer.has_key("COMPOSER"+str(zKey)): MakeComposer(self, int(zKey), tComposer["COMPOSER"+str(zKey)])
 
     def InterActiveMode(self):
-        if self.CkBx_InterActiveMode.isChecked(): mystr = AnalyseWOR(self, self.TxtFile.toPlainText()) 
+        if self.CkBx_InterActiveMode.isChecked(): mystr = AnalyseWOR(self, self.TxtFile.toPlainText())
 
     def FixenProj4(self, theProj):
         destinationCRS = QgsCoordinateReferenceSystem()
         destinationCRS.createFromProj4(QString(theProj))
-        self.iface.mapCanvas().mapRenderer().setDestinationCrs(destinationCRS) 
-        self.iface.mapCanvas().setMapUnits(destinationCRS.mapUnits()) 
+        self.iface.mapCanvas().mapRenderer().setDestinationCrs(destinationCRS)
+        self.iface.mapCanvas().setMapUnits(destinationCRS.mapUnits())
         self.iface.mapCanvas().updateScale()
 
     def FixeUniProjection(self):
-        self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(1) if self.CkBx_UniProj.isChecked() else  self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0) 
+        self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(1) if self.CkBx_UniProj.isChecked() else  self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0)
 
 
     def FixeTxtLabel(self, Dialog):
@@ -666,27 +679,28 @@ class Ui_Dialog_OW(object):
         self.BOpenFile.setText("...")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab1), "Options de restitution")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab2), "Moteur OPENWOR")
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab3), "Document en entrée")
+        self.tabWidget.setTabText(self.tabWidget.indexOf(
+            self.tab3), "Document en entrÃ©e")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab4), "Recherche de documents")
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab5), "Attention !")
-        self.labelMap.setText("Carte à  représenter :")
+        self.labelMap.setText("Carte Ã Â  reprÃ©senter :")
         self.labelInfoLayerMap.setText("Informations de la couche :")
         self.labelComposer.setText("Mise en page :")
-        self.labelOptions.setText("Options :")        
+        self.labelOptions.setText("Options :")
         self.CkBx_Surcharge.setText("Surcharger la session")
-        self.buttonProjMap.setText("Projections ...")        
+        self.buttonProjMap.setText("Projections ...")
         self.CkBx_UniProj.setText("Projection unique")
-        self.CkBx_ForceUnitsMap.setText("Forcer des unités cartes")
+        self.CkBx_ForceUnitsMap.setText("Forcer des unitÃ©s cartes")
         self.CkBx_NoZoomStep.setText("Ignorer les seuils de zoom")
         self.CkBx_InterActiveMode.setText("Activer le mode interactif")
-        self.buttonMap.setText("Charger la carte et la mise en page")        
-        self.labelprogressBar.setText("Couche(s) :")   
+        self.buttonMap.setText("Charger la carte et la mise en page")
+        self.labelprogressBar.setText("Couche(s) :")
         self.labelprogressBarL.setText("Analyse(s) :")
 
-        self.labelRep.setText("Répertoire de recherche :")
-        self.BDefineRep.setText("Sélection ...")
+        self.labelRep.setText("RÃ©pertoire de recherche :")
+        self.BDefineRep.setText("SÃ©lection ...")
         self.ExeSearchFILE.setText("Rechercher")
-        self.labelSearchFILE.setText("0 résultat(s).")
+        self.labelSearchFILE.setText("0 rÃ©sultat(s).")
 
 
     def MakeWarnings(self):
@@ -698,27 +712,27 @@ class Ui_Dialog_OW(object):
             istream = QTextStream(f)
             self.Warnings.setHtml(istream.readAll())
             f.close()
- 
 
 
-class SRSDialog(QDialog): 
-       def __init__(self): 
-         QDialog.__init__(self) 
-         layout = QVBoxLayout(self) 
-         self.selector = QgsProjectionSelector(self) 
-         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close) 
-         self.connect(buttonBox, SIGNAL("accepted()"), self.accept) 
-         self.connect(buttonBox, SIGNAL("rejected()"), self.reject) 
-         layout.addWidget(self.selector) 
-         layout.addWidget(buttonBox) 
-         self.setLayout(layout) 
-  
+
+class SRSDialog(QDialog):
+       def __init__(self):
+         QDialog.__init__(self)
+         layout = QVBoxLayout(self)
+         self.selector = QgsProjectionSelector(self)
+         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close)
+         self.connect(buttonBox, SIGNAL("accepted()"), self.accept)
+         self.connect(buttonBox, SIGNAL("rejected()"), self.reject)
+         layout.addWidget(self.selector)
+         layout.addWidget(buttonBox)
+         self.setLayout(layout)
+
        def epsg(self):
-         return  str(self.selector.selectedName()) + "|" + str(self.selector.selectedCrsId()) + "|" + str(self.selector.selectedEpsg()) + "|" + str(self.selector.selectedProj4String()) 
+         return  str(self.selector.selectedName()) + "|" + str(self.selector.selectedCrsId()) + "|" + str(self.selector.selectedEpsg()) + "|" + str(self.selector.selectedProj4String())
 
 
 #-------------------------------------
-# BLOC Mise en conformité bouton CARTE
+# BLOC Mise en conformitÃ© bouton CARTE
 #-------------------------------------
 def MajCtrlButtonMap(self):
         global tMap
@@ -732,12 +746,13 @@ def MajCtrlButtonMap(self):
         if len(tMap)==0 :
            self.labelMap.setText("Aucune carte :")
            self.buttonMap.setEnabled(False)
-        else : 
-           self.labelMap.setText("Carte à représenter :") if len(tMap)==1 else self.labelMap.setText("Cartes à représenter :")
+        else :
+           self.labelMap.setText("Carte Ã Â reprÃ©senter :") if len(
+               tMap) == 1 else self.labelMap.setText("Cartes Ã Â reprÃ©senter :")
            self.buttonMap.setEnabled(True) if len(tLayer)!=0 else self.buttonMap.setEnabled(False)
 
 
-    
+
 #-----------------------------------
 # BLOC Analyse WOR ...
 #-----------------------------------
@@ -753,34 +768,34 @@ def AnalyseWOR(self, nFile):
     tempLayer = "<br><h3><font color='#0000ff'>"+str(nFile)+"</font></h3>"
     tempLayer = tempLayer + "<table width='100%' border=0.5px>"
     tempLayer = tempLayer + "<tr bgcolor='#ccc'><td>Ressource : </td><td align='center'>Disponible</td><td width='75%'>URI</td></tr>"
-    
-    #remise à zéro des tableaux associatifs
+
+    #remise Ã  zÃ©ro des tableaux associatifs
     InitAllTableau(self)
 
     mytextfile, iLayer = "", 0
     nDir = CorrigePath(os.path.dirname(str(nFile)))
-    
+
     zDim = int(len(mylistWOR))
     if zDim == 0 : zDim = 1
     self.progressBarL.setValue(0)
 
 
-    for k in range(len(mylistWOR)):    
+    for k in range(len(mylistWOR)):
         line = mylistWOR[k]
         astring = str(QString.fromLocal8Bit(mylistWOR[k]))
         mytextfile = mytextfile + astring
 
-        #Progression de l'analyse  
+        #Progression de l'analyse
         zPercent = int(100 * float(float(k)/zDim))
         self.progressBarL.setValue(zPercent)
-        
-        if astring.upper().startswith('OPEN TABLE'): 
+
+        if astring.upper().startswith('OPEN TABLE'):
            iLayer=iLayer+1
            lst = astring.rsplit("\"")
 
-           nTable = NetStrInfos(lst[1], False, False, False, False, ("'")) 
+           nTable = NetStrInfos(lst[1], False, False, False, False, ("'"))
            nTable = nTable.replace("\\","/")
-          
+
            tempoALIAS = str(lst[2])
            theTest = NetStrInfos(tempoALIAS, True, True, True, False, ())
 
@@ -791,24 +806,25 @@ def AnalyseWOR(self, nFile):
               #Il faut rechercher la vraie ressource !!! Table logique
               nTable = GetAdress(nTable, nDir)
               nRessource = GetRessourceFile(nTable)
-              if nRessource != "": nTable = nRessource 
-                 
+              if nRessource != "": nTable = nRessource
+
            slst, nTable = tempoALIAS.split(), GetAdress(nTable, nDir)
 
            if nTable == "" and theTest and (self.CkBx_InterActiveMode.isChecked()):
               zCible = str(lst[1])
-              QMessageBox.information(None, "Avertissement chargement : " , "La table <b>[" + zCible +"]</b> n'a pas été localisée.<br>Veuillez indiquer le chemin pour cette table.<br>A défaut, elle sera <b><font color='#ff0000'>exclue</font></b> du document restitué.")
+              QMessageBox.information(None, "Avertissement chargement : ",
+                                      "La table <b>[" + zCible + "]</b> n'a pas Ã©tÃ© localisÃ©e.<br>Veuillez indiquer le chemin pour cette table.<br>A dÃ©faut, elle sera <b><font color='#ff0000'>exclue</font></b> du document restituÃ©.")
               InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText()=="" else os.path.dirname(str(self.TxtFile.toPlainText()))
               fileName = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Table MapInfo : ["+ zCible +"]"),InitDir,"*.tab")
               if not fileName.isNull():
                  zFile = str(os.path.basename(str(fileName)))
                  if zCible.upper().rfind(".TAB",len(zCible)-4)==-1: zCible=zCible+".TAB"
                  if zFile.upper() == zCible.upper() or zFile.upper() == os.path.basename(zCible.upper()): nTable = fileName
-         
-           
+
+
            if nTable!="":
-              tempLayer = tempLayer+"<tr><td>Fichier num."+str(iLayer)+"</td><td align='center'>Ok</td><td><font color='#00ff00'>"+str(line)+"</font></td></tr>" 
-              nTypeTable = str(GetTypeTable(nTable)) 
+              tempLayer = tempLayer+"<tr><td>Fichier num."+str(iLayer)+"</td><td align='center'>Ok</td><td><font color='#00ff00'>"+str(line)+"</font></td></tr>"
+              nTypeTable = str(GetTypeTable(nTable))
               nTypeTable = nTypeTable.upper()
 
               if nTypeTable == "NATIVE" : tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTable.replace("\"",""))
@@ -817,19 +833,19 @@ def AnalyseWOR(self, nFile):
                  if nTableRaster!="": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTableRaster.replace("\"",""))
               elif nTypeTable == "XLS" :
                  nTableRaster = GetRasterFile(nTable, False, True)
-                 if nTableRaster!="": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTableRaster.replace("\"","")) 
+                 if nTableRaster!="": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTableRaster.replace("\"",""))
               elif nTypeTable == "RASTER" :
                  nTableRaster = GetRasterFile(nTable, False, False)
                  if nTableRaster!="": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTableRaster.replace("\"",""))
               elif nTypeTable == "WMS" :
                  nTableRaster = GetRasterFile(nTable, False, False)
                  if nTableRaster!="": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTableRaster.replace("\"",""))
-              elif nTypeTable == "ASCII" :   
+              elif nTypeTable == "ASCII" :
                  nTableRaster = GetRasterFile(nTable, False, True)
                  if nTableRaster!="": tLayer[str(slst[1])], uLayer[str(slst[1])] = str(nTypeTable), str(nTableRaster.replace("\"",""))
            else:
-              tempLayer = tempLayer+"<tr><td>Fichier num."+str(iLayer)+"</td><td align='center'>Ko</td><td><b><font color='#ff0000'>"+str(line)+"</font></b></td></tr>" 
-               
+              tempLayer = tempLayer+"<tr><td>Fichier num."+str(iLayer)+"</td><td align='center'>Ko</td><td><b><font color='#ff0000'>"+str(line)+"</font></b></td></tr>"
+
         elif astring.upper().startswith('SELECT'):
               nstr = astring.replace("\"","'")
               nstr = nstr.rstrip("\n")
@@ -839,7 +855,7 @@ def AnalyseWOR(self, nFile):
               nstr = astring.replace("\"","'")
               nstr = nstr.rstrip("\n")
               k = MaketJoin(self, mylistWOR, nstr, k)
-            
+
         elif astring.upper().startswith('MAP FROM'):
               nstr = astring.replace("\"","'")
               nstr = nstr.rstrip("\n")
@@ -848,22 +864,22 @@ def AnalyseWOR(self, nFile):
         elif astring.upper().startswith('BROWSE *'):
               nstr = astring.replace("\"","'")
               nstr = nstr.rstrip("\n")
-              k = MaketBrowse(self, mylistWOR, nstr, k)    
- 
+              k = MaketBrowse(self, mylistWOR, nstr, k)
+
         elif astring.upper().startswith('LAYOUT'): #'SET WINDOW FRONTWINDOW() PRINTER') :
               nstr = astring.replace("\"","'")
               nstr = nstr.rstrip("\n")
               k = MaketComposer(self, mylistWOR, nstr, k)
-              
+
         else:
               pass
 
     ReOrgtLayerMapAna()
-    
-    #On alimente les deux onglets de restitution des informations du document en entrée
+
+    #On alimente les deux onglets de restitution des informations du document en entrÃ©e
     MakeHTMLView(self, tempLayer, subtempLayer)
     MakeTreeView(self)
-    #On alimente l'onglet "document en entrée"
+    #On alimente l'onglet "document en entrÃ©e"
     self.ViewFILE.setText(mytextfile)
 
     self.comboMap.clear()
@@ -875,14 +891,14 @@ def AnalyseWOR(self, nFile):
     return tempLayer
 
 #-----------------------------------------------------------------
-#FONCTIONS DE CONSTRUCTION DES TABLEAUX OPENWOR 
-# - 
+#FONCTIONS DE CONSTRUCTION DES TABLEAUX OPENWOR
+# -
 #-----------------------------------------------------------------
 def InitAllTableau(self):
     global tLayer
     global uLayer
     global tComposer
-    global tBrowse    
+    global tBrowse
     global tMap
     global tLayerMap
     global tLayerMapAna
@@ -893,20 +909,20 @@ def InitAllTableau(self):
     uLayer = {}
     tComposer = {}
     tBrowse = {}
-    tMap = {}    
+    tMap = {}
     tLayerMap = {}
     tLayerMapAna = {}
     tSelect = {}
     tJoin = {}
     tGroupLayer = {}
-  
-    
+
+
 def MaketMap(self, zlistWOR, Rac, wpos):
     global tMap
-    tpos = -1    
+    tpos = -1
     zMap = Rac
-    if wpos == (len(zlistWOR)-1): return wpos+1    
-    for mpos in range(wpos+1, len(zlistWOR)):    
+    if wpos == (len(zlistWOR)-1): return wpos+1
+    for mpos in range(wpos+1, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[mpos]))
         x = NetStrInfos(astring, True, True, True, False, ())
         if mpos > tpos :
@@ -917,7 +933,7 @@ def MaketMap(self, zlistWOR, Rac, wpos):
                  tpos = MaketLayerMap(self, zlistWOR, mpos, indexMap)
             elif x.startswith('GROUPLAYER') :
                  indexMap = len(tMap)
-                 tpos = MaketGroupLayer(self, zlistWOR, mpos, indexMap)                
+                 tpos = MaketGroupLayer(self, zlistWOR, mpos, indexMap)
             else :
                nstr = astring.replace("\"","'")
                nstr = nstr.rstrip("\n")
@@ -933,11 +949,11 @@ def MaketLayerMap(self, zlistWOR, wpos, indexMap):
     iLayerMap, iLayerMapAna, iC  = 1, 0, 0
     zLayerMap, zKey = "", ""
     if wpos == (len(zlistWOR)-1): return wpos+1
-    for lpos in range(wpos, len(zlistWOR)):    
+    for lpos in range(wpos, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[lpos]))
         x = NetStrInfos(astring, True, True, True, False, ())
-        if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('GROUPLAYER') or x.startswith('LAYOUT') or  x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM') or x.startswith('DIM WORKSPACEMAXIMIZEDWINDOW') or x.startswith('SET COORDSYS') or lpos==(len(zlistWOR)-1): 
-           tzLayerMap = zLayerMap.split("|[LAYER]|") 
+        if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('GROUPLAYER') or x.startswith('LAYOUT') or  x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM') or x.startswith('DIM WORKSPACEMAXIMIZEDWINDOW') or x.startswith('SET COORDSYS') or lpos==(len(zlistWOR)-1):
+           tzLayerMap = zLayerMap.split("|[LAYER]|")
 
            for k in range(1,len(tzLayerMap)):
                zTempo = tzLayerMap[k]
@@ -953,9 +969,9 @@ def MaketLayerMap(self, zlistWOR, wpos, indexMap):
                       zKey = 'MAP'+str(indexMap)+".LAYER"+str(iLayerMap)+"_"+ str(iLayerMapAna)
                       tLayerMapAna[zKey] = zTempo
                    else:
-                      zKey = 'MAP'+str(indexMap)+".LAYER"+str(iLayerMap) 
+                      zKey = 'MAP'+str(indexMap)+".LAYER"+str(iLayerMap)
                       tLayerMap[zKey] = zTempo
-               else:    
+               else:
                    zKey = 'MAP'+str(indexMap)+".LAYER"+str(iLayerMap)
                    tLayerMap[zKey] = zTempo
                if findLabel :
@@ -973,7 +989,7 @@ def MaketGroupLayer(self, zlistWOR, wpos, indexMap):
     global tGroupLayer
     zGroupLayer, zKey = "", ""
     if wpos == (len(zlistWOR)-1): return wpos+1
-    for gpos in range(wpos, len(zlistWOR)):    
+    for gpos in range(wpos, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[gpos]))
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE')  or x.startswith('ADD COLUMN') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -993,7 +1009,7 @@ def MaketSelect(self, zlistWOR, Rac, wpos):
     global tSelect
     zSelect = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
-    for spos in range(wpos+1, len(zlistWOR)):    
+    for spos in range(wpos+1, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[spos]))
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE')  or x.startswith('ADD COLUMN') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -1010,7 +1026,7 @@ def MaketJoin(self, zlistWOR, Rac, wpos):
     global tJoin
     zJoin = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
-    for spos in range(wpos+1, len(zlistWOR)):    
+    for spos in range(wpos+1, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[spos]))
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE')  or x.startswith('ADD COLUMN') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -1028,7 +1044,7 @@ def MaketBrowse(self, zlistWOR, Rac, wpos):
     global tBrowse
     zBrowse = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
-    for bpos in range(wpos+1, len(zlistWOR)):    
+    for bpos in range(wpos+1, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[bpos]))
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -1047,7 +1063,7 @@ def MaketComposer(self, zlistWOR, Rac, wpos):
     zComposer = Rac
     debComposer = False
     if wpos == (len(zlistWOR)-1): return wpos+1
-    for cpos in range(wpos+1, len(zlistWOR)):    
+    for cpos in range(wpos+1, len(zlistWOR)):
         astring = str(QString.fromLocal8Bit(zlistWOR[cpos]))
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -1055,7 +1071,7 @@ def MaketComposer(self, zlistWOR, Rac, wpos):
         else :
            nstr = astring.replace("\"","'")
            nstr = nstr.rstrip("\n")
-           zComposer = zComposer + "|" + nstr   
+           zComposer = zComposer + "|" + nstr
     indexComposer = len(tComposer)
     tComposer['COMPOSER'+str(indexComposer)] = zComposer
     return cpos
@@ -1068,25 +1084,29 @@ def MaketComposer(self, zlistWOR, Rac, wpos):
 def MakeHTMLView(self, tempLayer, subtempLayer):
     tempLayer+= "</table><br><hr><br>"
     tempLayer+= "<table width='100%' border=0.5px><tr align='center'><td colspan='3'><font color='#0000ff'><h3>Statistiques du document :</h3></font></td></tr>"
-    tempLayer+= "<tr><td>Nombre de carte(s) :</td><td>"+str(len(tMap))+"</td><td>("+str(tMap.keys())+")</td></tr>" 
+    tempLayer+= "<tr><td>Nombre de carte(s) :</td><td>"+str(len(tMap))+"</td><td>("+str(tMap.keys())+")</td></tr>"
     tempLayer+= "<tr><td>Nombre de mise(s) en page :</td><td>"+str(len(tComposer))+"</td><td>("+str(tComposer.keys())+")</td></tr>"
     tempLayer+= "<tr><td>Nombre de fenetre(s) donnees :</td><td>"+str(len(tBrowse))+"</td><td>("+str(tBrowse.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de sélection(s) :</td><td>"+str(len(tSelect))+"</td><td>("+str(tSelect.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de jointure(s) :</td><td>"+str(len(tJoin))+"</td><td>("+str(tJoin.keys())+")</td></tr>"      
+    tempLayer += "<tr><td>Nombre de sÃ©lection(s) :</td><td>"+str(
+        len(tSelect))+"</td><td>("+str(tSelect.keys())+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de jointure(s) :</td><td>"+str(len(tJoin))+"</td><td>("+str(tJoin.keys())+")</td></tr>"
     tempLayer+= "<tr><td>Nombre de couche(s) :</td><td>"+str(len(tLayerMap))+"</td><td>("+str(tLayerMap.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre d'analyse(s) thématique(s) :</td><td>"+str(len(tLayerMapAna))+"</td><td>("+str(tLayerMapAna.keys())+")</td></tr>"
+    tempLayer += "<tr><td>Nombre d'analyse(s) thÃ©matique(s) :</td><td>"+str(
+        len(tLayerMapAna))+"</td><td>("+str(tLayerMapAna.keys())+")</td></tr>"
     tempLayer+= "<tr><td>Nombre de groupe(s) :</td><td>"+str(len(tGroupLayer))+"</td><td>("+str(tGroupLayer.keys())+")</td></tr>"
     tempLayer+= "</table>"
     subtempLayer+= "<br><font color='#0000ff'><h3>Cartes (tMap) : " +str(len(tMap))+ " </h3></font>"+MefDic(tMap)
     subtempLayer+= "<br><font color='#0000ff'><h3>Compositions (tComposer) : " +str(len(tComposer))+ " </h3></font>"+MefDic(tComposer)
-    subtempLayer+= "<br><font color='#0000ff'><h3>Fenêtres données (tBrowse) : " +str(len(tBrowse))+ " </h3></font>"+MefDic(tBrowse)
+    subtempLayer += "<br><font color='#0000ff'><h3>FenÃªtres donnÃ©es (tBrowse) : " + str(
+        len(tBrowse)) + " </h3></font>"+MefDic(tBrowse)
     subtempLayer+= "<br><font color='#0000ff'><h3>Couches (tLayer) : " +str(len(tLayer))+ " </h3></font>"+MefDic(tLayer)
     subtempLayer+= "<br><font color='#0000ff'><h3>URL couches (uLayer) : "  +str(len(uLayer))+ " </h3></font>"+MefDic(uLayer)
-    subtempLayer+= "<br><font color='#0000ff'><h3>Sélections (tSelect) : "  +str(len(tSelect))+ " </h3></font>"+MefDic(tSelect)
-    subtempLayer+= "<br><font color='#0000ff'><h3>Jointures (tJoin) : "  +str(len(tJoin))+ " </h3></font>"+MefDic(tJoin)    
+    subtempLayer += "<br><font color='#0000ff'><h3>SÃ©lections (tSelect) : " + str(
+        len(tSelect)) + " </h3></font>"+MefDic(tSelect)
+    subtempLayer+= "<br><font color='#0000ff'><h3>Jointures (tJoin) : "  +str(len(tJoin))+ " </h3></font>"+MefDic(tJoin)
     subtempLayer+= "<br><font color='#0000ff'><h3>Couches de la carte (tLayerMap) : " +str(len(tLayerMap))+ " </h3></font>"+MefDic(tLayerMap)
     subtempLayer+= "<br><font color='#0000ff'><h3>Analyses de la carte (tLayerMapAna) : "  +str(len(tLayerMapAna))+ " </h3></font>"+MefDic(tLayerMapAna)
-    subtempLayer+= "<br><font color='#0000ff'><h3>Groupes la carte (tGroupLayer) : "  +str(len(tGroupLayer))+ " </h3></font>"+MefDic(tGroupLayer)    
+    subtempLayer+= "<br><font color='#0000ff'><h3>Groupes la carte (tGroupLayer) : "  +str(len(tGroupLayer))+ " </h3></font>"+MefDic(tGroupLayer)
     intro = "<h2><img src='"+ getThemeIcon("selectplus_a.png")+"'>&nbsp;<u>Variables OPENWOR</u> :</h2>"
     intro+= "<table border='0.5' bordercolor='#000000' width=100% cellspacing=0 cellpadding=0><tr bgcolor='#cccccc'><tr><td>"
     fin = "</td></tr></table>"
@@ -1102,7 +1122,7 @@ def MefDic(DicGen):
 def CountValideURL(DicGen):
     zValidURL = 0
     for key in DicGen.keys():
-        if str(key)!="":  
+        if str(key)!="":
            if str(DicGen[key])!="" :  zValidURL+= 1
     return zValidURL
 
@@ -1121,7 +1141,8 @@ def MakeTreeView(self):
     parentItem = MakeParentItem(self, "Compositions (tComposer) : " + str(len(tComposer)))
     MakeItem(tComposer, parentItem)
 
-    parentItem = MakeParentItem(self, "Fenêtres données (tBrowse) : " + str(len(tBrowse)))
+    parentItem = MakeParentItem(
+        self, "FenÃªtres donnÃ©es (tBrowse) : " + str(len(tBrowse)))
     MakeItem(tBrowse, parentItem)
 
     parentItem = MakeParentItem(self, "Couches (tLayer) : " + str(len(tLayer)))
@@ -1130,7 +1151,8 @@ def MakeTreeView(self):
     parentItem = MakeParentItem(self, "URL couches (uLayer) : " + str(len(uLayer)))
     MakeItem(uLayer, parentItem)
 
-    parentItem = MakeParentItem(self, "Sélections (tSelect) : " + str(len(tSelect)))
+    parentItem = MakeParentItem(
+        self, "SÃ©lections (tSelect) : " + str(len(tSelect)))
     MakeItem(tSelect, parentItem)
 
     parentItem = MakeParentItem(self, "Jointures (tJoin) : " + str(len(tJoin)))
@@ -1168,7 +1190,7 @@ def MakeItem(DicGen, parentItem):
 
 #------------------------------
 #FONCTIONS CREATION DE LA CARTE
-#------------------------------           
+#------------------------------
 def MakeMapCanvas(self, iMap):
           global tMap
           global nProj4Infos
@@ -1176,12 +1198,12 @@ def MakeMapCanvas(self, iMap):
 
           if not self.CkBx_Surcharge.isChecked(): self.iface.newProject()
 
-          if self.CkBx_UniProj.isChecked():    
+          if self.CkBx_UniProj.isChecked():
              lInfosProj4 = nProj4Infos.split("|")
              nProj4 = int(lInfosProj4[2])
              self.FixenProj4(lInfosProj4[3])
              self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(1)
- 
+
           ic='MAP'+str(iMap)
           cCarte = str(tMap[ic])
           tempo = cCarte.split("|")
@@ -1196,7 +1218,7 @@ def MakeMapCanvas(self, iMap):
           layero = NetStrInfos(layero, True, True, False, False, ("MAP FROM","Map from", "Map From", "|"))
           ssLayer = layero.split(",")
 
-          #initialisation unités de la carte - a minima dans la maquette
+          #initialisation unitÃ©s de la carte - a minima dans la maquette
           zDD, zUnitsMap = True, ""
           nSizeMap = self.iface.mapCanvas().width()
           nSizeMap = nSizeMap * 20 * (0.00176388888888889) * 1.5
@@ -1206,7 +1228,7 @@ def MakeMapCanvas(self, iMap):
           zCenter = ""
 
           for i in range(len(tempo)):
-              stempo = NetStrInfos(tempo[i], True, False, False, False, ()) 
+              stempo = NetStrInfos(tempo[i], True, False, False, False, ())
               x = stempo.upper()
               if x.find("DISTANCE UNITS")!= -1:
                  posd = x.find("XY UNITS")+9
@@ -1214,7 +1236,7 @@ def MakeMapCanvas(self, iMap):
                  zUnitsMap = NetStrInfos(stempo[posd:posf], False, False, True, False, ("\"","'"))
               elif x.find("DISPLAY DECIMAL OFF")!=-1: zDD = False
               elif x.find("LAYER ")!=-1: break
-              elif x.startswith("ZOOM "): zEmprise =  NetStrInfos(tempo[i].upper(), True, False, False, False, ()) 
+              elif x.startswith("ZOOM "): zEmprise =  NetStrInfos(tempo[i].upper(), True, False, False, False, ())
               elif x.startswith("CENTER "): zCenter =  NetStrInfos(tempo[i].upper(), True, False, False, False, ("CENTER (",")"))
               elif x.startswith("COORDSYS "): zProj =  NetStrInfos(tempo[i].upper(), True, False, False, False, ())
 
@@ -1231,19 +1253,19 @@ def MakeMapCanvas(self, iMap):
           zGroups = ""
           zNameGroupLayer = ""
 
-          
+
           for j in range(len(ssLayer)):
              if ssLayer[j].upper().find("GROUPLAYER")!=-1:
                  zNameGroupLayer = NetStrInfos(ssLayer[j].split("(")[1], True, True, False, False, (")", "'"))
                  zGroups = str(tGroup[len(tGroup)-1])  + "/" +  zNameGroupLayer if len(tGroup) > 0 else zNameGroupLayer
-                 #tableau pour gérer la visibilité des groupes
+                 #tableau pour gÃ©rer la visibilitÃ© des groupes
                  zDisplay = 1
                  if tGroupLayer.has_key("GROUPLAYER"+str(iGroup)):
                     zInfos = tGroupLayer["GROUPLAYER"+str(iGroup)].split("|")
                     if zInfos[1].upper().find("DISPLAY OFF") != -1 : zDisplay = -1
                  tGroupVisibility["GROUP"+str(iGroup)] = zNameGroupLayer + "|" + str(zGroups) + "|" + str(zDisplay)
                  iGroup+= 1
-                 
+
                  if ssLayer[j].find(")")==-1 : tGroup << str(zGroups)
                  else :
                      cEltLegend = ic+".ELT"+str(iEltLegend)
@@ -1252,38 +1274,38 @@ def MakeMapCanvas(self, iMap):
                      iGroupsMap+= 1
                      iEltLegend+= 1
                      zGroups, tGroup = NettGroup(ssLayer[j], tGroup, zGroups, zNameGroupLayer)
-   
+
              else:
                  if iLayersMap <= zLayersMap :
-                    cEltLegend = ic+".ELT"+str(iEltLegend)  
+                    cEltLegend = ic+".ELT"+str(iEltLegend)
                     cLayerMap = ic+".LAYER"+str(iLayersMap)
                     cLayer = NetStrInfos(ssLayer[j], True, True, False, False, (")", "'"))
                     tLayerGroup[cEltLegend] = cLayerMap + "|" + cLayer + "|" + str(zGroups)
                     iLayersMap+= 1
-                    iEltLegend+= 1                    
+                    iEltLegend+= 1
                     zGroups, tGroup = NettGroup(ssLayer[j], tGroup, zGroups, zNameGroupLayer)
 
 
-          ProjectHasXLS = False          
+          ProjectHasXLS = False
           for key in tLayer.keys():
               sKey = str(key)
               if tLayer[sKey] == "XLS" :
-                 #Fonction pour récupérer le nom de l'onglet
+                 #Fonction pour rÃ©cupÃ©rer le nom de l'onglet
                  TabFile = str(uLayer[sKey])
                  TabFile = TabFile.upper()
-                 TabFile = TabFile.replace(".XLS", ".TAB")                  
-                 sCalc = GetRangeTableXLS(TabFile) 
+                 TabFile = TabFile.replace(".XLS", ".TAB")
+                 sCalc = GetRangeTableXLS(TabFile)
                  vLayer = self.iface.addVectorLayer(uLayer[sKey],sCalc,"ogr")
                  ProjectHasXLS = True
-              
-          
+
+
           total = int(len(tLayerGroup))
           #Passe des groupes
           InitProgressBar(self, "Groupe(s) :")
           for ij in range(total):
-              cEltLegend = ic+".ELT"+str(ij+1)           
+              cEltLegend = ic+".ELT"+str(ij+1)
               zInfos = tLayerGroup[cEltLegend].split("|")
-              cLayerMap = str(zInfos[0])           
+              cLayerMap = str(zInfos[0])
               cLayer = str(zInfos[1])
               cGroup = str(zInfos[2])
               destGroup = MakeGroupLayer(self, cGroup)
@@ -1291,11 +1313,11 @@ def MakeMapCanvas(self, iMap):
               self.progressBar.setValue(zPercent)
 
           #Passe des couches
-          InitProgressBar(self, "Couche(s) :")    
+          InitProgressBar(self, "Couche(s) :")
           for ij in range(total-1, -1, -1):
-              cEltLegend = ic+".ELT"+str(ij+1)           
+              cEltLegend = ic+".ELT"+str(ij+1)
               zInfos = tLayerGroup[cEltLegend].split("|")
-              cLayerMap = str(zInfos[0])           
+              cLayerMap = str(zInfos[0])
               cLayer = str(zInfos[1])
               cGroup = str(zInfos[2])
               if cLayer != "" :
@@ -1307,7 +1329,7 @@ def MakeMapCanvas(self, iMap):
           self.progressBar.setValue(0)
           zCond = True if len(tGroupLayer) > 0 else False
           MakeGroupExpanded(self, zCond)
-      
+
           legendTree = self.iface.mainWindow().findChild(QDockWidget, "Legend").findChild(QTreeWidget)
           for i in range(len(tGroupVisibility)):
               zInfos = tGroupVisibility["GROUP"+str(i)].split("|")
@@ -1333,7 +1355,7 @@ def MakeMapCanvas(self, iMap):
              zUnitsProj = NetStrInfos(zProj.split(",")[6], False, False, True, False, ("\"", "'"))
              zUnitsProjList = QStringList()
              zUnitsProjList << "IN" << "DD" << "MM" << "CM" << "KM" << "M"
-             
+
              if (zUnitsProjList.contains(zUnitsProj)):
                  xCenter = float(GetValueZoom(xCenter, zUnitsProj, nSizeMap, nSizeMapUnits))
                  yCenter = float(GetValueZoom(yCenter, zUnitsProj, nSizeMap, nSizeMapUnits))
@@ -1349,17 +1371,17 @@ def MakeMapCanvas(self, iMap):
 #-----------------------------------
 def FixeGroupLayer(self, zLayer, destGroup, nCond):
     legendTree = self.iface.mainWindow().findChild(QDockWidget, "Legend").findChild(QTreeWidget)
-    itemsel = legendTree.currentItem()   
+    itemsel = legendTree.currentItem()
     if (destGroup != None ):
         if itemsel.parent() : itemsel.parent().takeChild(itemsel.parent().indexOfChild(itemsel))
         else : legendTree.takeTopLevelItem(legendTree.indexOfTopLevelItem(itemsel))
-        destGroup.insertChild( destGroup.indexOfChild(destGroup) + 1, itemsel ) 
+        destGroup.insertChild( destGroup.indexOfChild(destGroup) + 1, itemsel )
         itemsel = legendTree.currentItem()
- 
+
 
 def MakeGroupLayer(self, cGroup):
     legend = self.iface.legendInterface()
-    legendTree = self.iface.mainWindow().findChild(QDockWidget, "Legend").findChild(QTreeWidget)    
+    legendTree = self.iface.mainWindow().findChild(QDockWidget, "Legend").findChild(QTreeWidget)
     itemGroup = None
     if cGroup !="" :
        tGroup = cGroup.split("/")
@@ -1375,7 +1397,7 @@ def MakeGroupLayer(self, cGroup):
                  itemList = legendTree.findItems(QString(zGroup), Qt.MatchExactly|Qt.MatchCaseSensitive|Qt.MatchRecursive)
                  if len(itemList): itemGroup = itemList[len(itemList)-1]
                  i+= 1
-              break   
+              break
     return itemGroup
 
 
@@ -1398,12 +1420,12 @@ def NettGroup(ssLayer, tGroup, zGroups, zNameGroupLayer):
           zRetrait = zRetrait - 1
     if zRefRetrait > 0 : zGroups = str(tGroup[len(tGroup)-1])  + "/" +  zNameGroupLayer if len(tGroup) > 0 else ""
     return zGroups, tGroup
-    
+
 
 def CountLayersMap(zDic, zMap):
     CountLayers = 0
     for key in zDic.keys():
-        if key.find(zMap)!=-1: CountLayers+= 1 
+        if key.find(zMap)!=-1: CountLayers+= 1
     return CountLayers
 
 
@@ -1411,15 +1433,15 @@ def CountLayersMap(zDic, zMap):
 # BLOC Fonctions MIWI & Autres ...
 #-----------------------------------
 #-------------------------------------------------------
-#FONCTION CORRECTION DES CHEMINS (AJOUT / SI NECESSAIRE)    
-#-------------------------------------------------------    
+#FONCTION CORRECTION DES CHEMINS (AJOUT / SI NECESSAIRE)
+#-------------------------------------------------------
 def CorrigePath(nPath):
     nPath = str(nPath)
     a = len(nPath)
     subC = "/"
     b = nPath.rfind(subC, 0, a)
-    return (nPath + "/") if a != b else nPath 
-     
+    return (nPath + "/") if a != b else nPath
+
 def GetAdress(nTable, nDir):
     rTable = nTable
     if not os.path.exists(rTable):
@@ -1427,7 +1449,7 @@ def GetAdress(nTable, nDir):
        retval = os.path.abspath(retval)
        rTable = retval if os.path.exists(retval) else ""
     return rTable
-    
+
 def GetTypeTable(nTable):
     mytable = open(nTable, 'r')
     nType=""
@@ -1439,7 +1461,7 @@ def GetTypeTable(nTable):
            nType = NetStrInfos(lst[1], False, False, False, False, ("\""))
            break
     mytable.closed
-    if nType == "": nType = "NATIVE" 
+    if nType == "": nType = "NATIVE"
     return nType
 
 def GetRangeTableXLS(nTable):
@@ -1498,8 +1520,8 @@ def GetRessourceFile(nTable):
     for line in mytable:
         astring=str(QString.fromLocal8Bit(line))
         x = astring.upper()
-        if x.find('OPEN TABLE')!=-1: 
-           #on récupère le chemin du fichier 
+        if x.find('OPEN TABLE')!=-1:
+           #on rÃ©cupÃ¨re le chemin du fichier
            lst = x.split()
            zIndex = FixeIndex(0,lst, "TABLE")
            lst = astring.split()
@@ -1527,16 +1549,16 @@ def GetRasterFile(nTable, IsSHP, IsASCII):
             astring=str(QString.fromLocal8Bit(line))
             x = astring.upper()
             if x.find('FILE')!=-1: #>
-               #on récupère le chemin du fichier 
+               #on rÃ©cupÃ¨re le chemin du fichier
                lst = astring.split()
                nType = NetStrInfos(lst[1], False, False, False, False, ("\""))
                nDir = str(nTable)
                nDir = CorrigePath(os.path.dirname(nDir))
                if IsSHP:
                   if nType == "SHAPEFILE":
-                     nType = nTable[0:len(nTable)-3]+"SHP"  
-                  else:  
-                     nType = nType.rstrip(".DBF") 
+                     nType = nTable[0:len(nTable)-3]+"SHP"
+                  else:
+                     nType = nType.rstrip(".DBF")
                      nType = nType + ".SHP"
                nType = GetAdress(nType, nDir)
                break
@@ -1544,7 +1566,7 @@ def GetRasterFile(nTable, IsSHP, IsASCII):
     return nType
 
 def getThemeIcon(theName):
-    myPath = CorrigePath(os.path.dirname(__file__)) 
+    myPath = CorrigePath(os.path.dirname(__file__))
     myDefPath = myPath.replace("\\","/");
     myIconsPath = myDefPath + "icons/" + theName ;
     myCurThemePath = QgsApplication.activeThemePath() + "/plugins/" + theName;
@@ -1559,13 +1581,13 @@ def getThemeIcon(theName):
     else: return theName
 
 #----------------------------------------------
-# FONCTION POSITONNEMENT RELATIF ANATHEMA/CARTE  
-#----------------------------------------------   
+# FONCTION POSITONNEMENT RELATIF ANATHEMA/CARTE
+#----------------------------------------------
 def CountAna(DicGen, Target):
     zCountAna = 0
     for key in DicGen.keys():
         sKey = str(key)
-        if sKey.find(Target)!=-1: zCountAna+= 1 
+        if sKey.find(Target)!=-1: zCountAna+= 1
     return zCountAna
 
 def CountAnaiMapSup(iMap, index):
@@ -1609,23 +1631,23 @@ def CountAnaInfMapi(iMap):
 
 
 #-------------------------------------------
-# FONCTION CONSTITUTION DE LA LEGENDE CARTE  
+# FONCTION CONSTITUTION DE LA LEGENDE CARTE
 #-------------------------------------------
 def MakeGroupExpanded(self, nCond):
     Layers = self.iface.legendInterface().layers()
     i = 0
-    for layer in Layers:     
+    for layer in Layers:
         self.iface.legendInterface().setGroupExpanded(i, nCond)
         i+= 1
 
 def FixeExtent(self):
     Layers = self.iface.legendInterface().layers()
-    for layer in Layers:   
+    for layer in Layers:
         isOK = False
         if layer.type()== layer.VectorLayer and layer.isValid() :
            try: zType = str(layer.storageType())
            except: zType = "MEMORY STORAGE"
-           if zType.upper().find("MEMORY STORAGE")==-1 and zType.upper().find("XLS")==-1: isOK = True 
+           if zType.upper().find("MEMORY STORAGE")==-1 and zType.upper().find("XLS")==-1: isOK = True
         if isOK:
            layer.select([])
            layer.setSelectedFeatures([feat.id() for feat in layer])
@@ -1633,7 +1655,7 @@ def FixeExtent(self):
            self.iface.mapCanvas().refresh()
            layer.setSelectedFeatures([])
            zItem = MakeGroupLayer(self, str(layer.name()))
-           zItem.setSelected(True) 
+           zItem.setSelected(True)
            break
     return
 
@@ -1645,9 +1667,9 @@ def layerIds(layer):
     f = QgsFeature()
     while p.nextFeature(f): ids.append(f.id())
     return ids
-    
+
 #--------------------------------------------
-# FONCTION CHARGEMENT DES COUCHES DE LA CARTE  
+# FONCTION CHARGEMENT DES COUCHES DE LA CARTE
 #--------------------------------------------
 def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
     global tLayer
@@ -1672,13 +1694,13 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
            if tLayer[cLayer] == "NATIVE" or tLayer[cLayer] == "SHAPEFILE" or tLayer[cLayer] == "ASCII" :
               if vType == "NATIVE": driver = ogr.GetDriverByName("MapInfo File")
               elif vType == "SHAPEFILE" : driver = ogr.GetDriverByName("Shapefile")
-              
+
               if tLayer[cLayer] == "NATIVE" or tLayer[cLayer] == "SHAPEFILE" :
                   try:
                       datasource = driver.Open(uLayer[cLayer])
-                      layer = datasource.GetLayer() 
+                      layer = datasource.GetLayer()
                       zFeatureCount = layer.GetFeatureCount()
-                  except:  
+                  except:
                       #Fausse couche MapInfo, on va la traiter en couche logique
                       zCible = uLayer[cLayer][0:len(uLayer[cLayer])-4]+".dat"
                       if os.path.exists(zCible):
@@ -1687,10 +1709,11 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                          uLayer[cLayer] = zCible2
                          sLayerVisibility = tLayerMap[cLayerMap]
 
-                         zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, None) 
-                         vLayer = self.iface.addVectorLayer(uLayer[cLayer],cLayer + " (Données Couche Logique)","ogr")
+                         zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, None)
+                         vLayer = self.iface.addVectorLayer(
+                             uLayer[cLayer], cLayer + " (DonnÃ©es Couche Logique)", "ogr")
                          zRefGroup = MakeGroupLayer(self, "Groupe : " + cLayer + " (Couche Logique)")
-                         
+
                          zCiblePath = os.path.dirname(zCible)+"\\"
                          p = vLayer.dataProvider()
                          allAttrs = p.attributeIndexes()
@@ -1698,12 +1721,12 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                          fields = p.fields()
                          f = QgsFeature()
 
-                         while p.nextFeature(f): 
+                         while p.nextFeature(f):
                                atMap = f.attributeMap()
                                zTAB = str( atMap[ 0 ].toString())
                                zNAMETAB = str( atMap[ 1 ].toString())
                                zTYPETAB = str(GetTypeTable(zCiblePath+zTAB))
-                    
+
                                if zTYPETAB == "RASTER" :
                                    zTableRaster = GetRasterFile(zCiblePath+zTAB, False, False)
                                    if os.path.exists(zTableRaster): vLayer = self.iface.addRasterLayer(zTableRaster,zNAMETAB)
@@ -1715,19 +1738,21 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                                   FixeGroupLayer(self, vLayer, zRefGroup, indiceVisibility)
 
                          return []
-                         RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)  
+                         RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
 
-                      else: zFeatureCount = 0 #si pas de DAT, on créé une couche vide ...
-                  
+                      else:
+                          # si pas de DAT, on crÃ©Ã© une couche vide ...
+                          zFeatureCount = 0
+
               else:
                   zFeatureCount = NbRowAsciiFILE(uLayer[cLayer])
 
               if zFeatureCount > 0:
-                  #Il faut regarder si Analyse thématique et combien    
+                  #Il faut regarder si Analyse thÃ©matique et combien
                   NbAna = CountAna(tLayerMapAna, cLayerMap)
                   sLayerVisibility=""
                   LayerSupport = False
-                
+
                   if NbAna > 0:
                      HasLabeller = False
                      ztoto = cLayerMap.split(".")
@@ -1737,11 +1762,11 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                      self.progressBarL.setValue(0)
 
                      for i in range(NbAna):
-                         
+
                          if not LayerSupport:
                             if tLayer[cLayer] == "NATIVE" or tLayer[cLayer] == "SHAPEFILE" : vLayer = self.iface.addVectorLayer(uLayer[cLayer],cLayer,"ogr")
                             else: vLayer = AddLayerASCII(self, uLayer[cLayer],cLayer, zFeatureCount)
-                                
+
                             RefLayer = vLayer
                             Symbo2Vector(self, vLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, vType, nForceUnitsMap, nFixeUniProj, nProj4Infos, nNoZoomStep)
                             sLayerVisibility = tLayerMap[cLayerMap]
@@ -1763,44 +1788,44 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                                 if tLayer[cLayer] == "NATIVE" or tLayer[cLayer] == "SHAPEFILE" : vLayer = self.iface.addVectorLayer(uLayer[cLayer],cLayer,"ogr")
                                 else: vLayer = AddLayerASCII(self, uLayer[cLayer],cLayer, zFeatureCount)
                                 QgsMapLayerRegistry.instance().addMapLayers([vLayer])
-                                
+
 
                              sLayerVisibility = tLayerMapAna[cLayerMap+"_"+str(i+1)]
                              nCondAna = True
                              if nTypeAna == "VALUES" or nTypeAna == "RANGES" : fLayer = SymboVectorAna(self, vLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, zPosANA, tMap["MAP"+str(iMap)],vType, tLayerMap[cLayerMap], False, nFixeUniProj, nForceUnitsMap, sLayerVisibility, nProj4Infos, nNoZoomStep)
-                             else: fLayer = SymboVectorAna(self, RefLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, zPosANA, tMap["MAP"+str(iMap)], vType, tLayerMap[cLayerMap], False, nFixeUniProj, nForceUnitsMap, sLayerVisibility, nProj4Infos, nNoZoomStep)                             
+                             else: fLayer = SymboVectorAna(self, RefLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, zPosANA, tMap["MAP"+str(iMap)], vType, tLayerMap[cLayerMap], False, nFixeUniProj, nForceUnitsMap, sLayerVisibility, nProj4Infos, nNoZoomStep)
                              indiceVisibility = MakeVisibility(self, fLayer, sLayerVisibility)
                              if fLayer != None :
                                 fLayers.append(fLayer.id())
                                 FixeGroupLayer(self, fLayer, cInGroup, indiceVisibility)
-                            
+
                          zPercent = int(100 * float(float(i+1)/NbAna))
                          self.progressBarL.setValue(zPercent)
-  
+
                   else:
                      if tLayer[cLayer] == "NATIVE" or tLayer[cLayer] == "SHAPEFILE" : vLayer = self.iface.addVectorLayer(uLayer[cLayer],cLayer,"ogr")
                      else: vLayer = AddLayerASCII(self, uLayer[cLayer],cLayer, zFeatureCount)
 
-                     
+
                      if tLayerMap.has_key(cLayerMap):
                         sLayerVisibility = tLayerMap[cLayerMap]
                         Symbo2Vector(self, vLayer, sLayerVisibility, nSizeMap, nSizeMapUnits, vType, nForceUnitsMap, nFixeUniProj, nProj4Infos, nNoZoomStep)
                         QgsMapLayerRegistry.instance().addMapLayers([vLayer])
                         indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
-                       
+
                         if vLayer != None :
                            fLayers.append(vLayer.id())
                            FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
-                        
+
                   self.progressBarL.setValue(0)
                   if len(tBrowse)> 0 :
                      for key in tBrowse.keys():
                           tempo = tBrowse[key].split("|")
                           stempo = str(tempo[0])
                           if stempo.find(cLayer)!=-1:
-                             self.iface.showAttributeTable(vLayer) 
+                             self.iface.showAttributeTable(vLayer)
                              break
-                  
+
 
 
               else:
@@ -1811,60 +1836,61 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                   ztempolayer = QgsMapLayerRegistry.instance().addMapLayer(tempolayer)
                   if tempolayer != None :
                      fLayers.append(tempolayer.id())
-                     FixeGroupLayer(self, tempolayer, cInGroup, False)                     
+                     FixeGroupLayer(self, tempolayer, cInGroup, False)
 
-           
+
            elif tLayer[cLayer] == "RASTER" :
                   hDataset = gdal.Open( uLayer[cLayer], gdal.GA_ReadOnly )
                   if hDataset is None:
                      stempo = os.path.splitext(uLayer[cLayer])
                      zType = NetStrInfos(stempo[1], False, False, True, False, ("."))
-                      
+
                      if zType == "MIG":
-                        #Il faut récupérer l'adresse de la table support
+                        #Il faut rÃ©cupÃ©rer l'adresse de la table support
                         TabFile = uLayer[cLayer]
                         TabFile = TabFile[0:len(TabFile)-4]+".TAB"
-                        
+
                         zCiblePath = os.path.dirname(TabFile)+"\\"
 
                         nFile = GetRasterFileMIG(TabFile)
                         nFile = nFile.rstrip()
                         isDEM = False
-                            
+
                         if nFile == "":
-                           TabFile = TabFile[0:len(TabFile)-4]+".DEM" 
+                           TabFile = TabFile[0:len(TabFile)-4]+".DEM"
                            if os.path.exists(TabFile):
-                              isDEM = True  
+                              isDEM = True
                               nFile = TabFile
-                           else:    
-                              QMessageBox.information(None,"Avertissement :", "Le format " + str(zType) + " pour la table :\n"+ str(uLayer[cLayer]) +"\nn'est pas supporté.")
-                              return [] #format non supporté
+                           else:
+                              QMessageBox.information(None, "Avertissement :", "Le format " + str(
+                                  zType) + " pour la table :\n" + str(uLayer[cLayer]) + "\nn'est pas supportÃ©.")
+                              return []  # format non supportÃ©
 
                         if not os.path.exists(nFile):
                            if os.path.exists(zCiblePath+nFile): nFile = zCiblePath + nFile
-                       
+
                         if os.path.exists(nFile):
                            if isDEM:
                                vLayer = self.iface.addRasterLayer(nFile, cLayer)
                                QgsMapLayerRegistry.instance().addMapLayers([vLayer])
                                vLayer.setDrawingStyle(QgsRasterLayer.SingleBandPseudoColor)
                                vLayer.setColorShadingAlgorithm(QgsRasterLayer.PseudoColorShader)
-                           else: 
+                           else:
                                nField = GetMIGFieldName(TabFile)
-                               vLayer = self.iface.addVectorLayer(nFile,cLayer,"ogr")                           
+                               vLayer = self.iface.addVectorLayer(nFile,cLayer,"ogr")
                                nAnaMIG = GetMIGInfos(TabFile)
-                               vType = str(GetTypeTable(nFile)) 
+                               vType = str(GetTypeTable(nFile))
                                vType = vType.upper()
-                               
+
                            if tLayerMap.has_key(cLayerMap):
                               sLayerVisibility = tLayerMap[cLayerMap]
                               if not isDEM :
-                                  SymboRasterMIG(self, vLayer, nFile, tLayerMap[cLayerMap], nAnaMIG, nField, nSizeMap, nSizeMapUnits, tMap["MAP"+str(iMap)], vType, nForceUnitsMap)                              
+                                  SymboRasterMIG(self, vLayer, nFile, tLayerMap[cLayerMap], nAnaMIG, nField, nSizeMap, nSizeMapUnits, tMap["MAP"+str(iMap)], vType, nForceUnitsMap)
                               indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
                               QgsMapLayerRegistry.instance().addMapLayers([vLayer])
                               if vLayer != None :
                                   fLayers.append(vLayer.id())
-                                  FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)                               
+                                  FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
 
                   else:
                      vLayer = self.iface.addRasterLayer(uLayer[cLayer],cLayer)
@@ -1876,20 +1902,20 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
 
                      if vLayer != None :
                         fLayers.append(vLayer.id())
-                        FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)                         
+                        FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
 
-             
+
            elif tLayer[cLayer] == "WMS" :
                 lstWMS = GetWMSInfos(uLayer[cLayer])
                 SubEltWMS = lstWMS.split("|")
-                zURL = str(SubEltWMS[0]) 
-                zSRS = str(SubEltWMS[1]) 
+                zURL = str(SubEltWMS[0])
+                zSRS = str(SubEltWMS[1])
                 zVersion = str(SubEltWMS[4]) #3
 
                 if zVersion == "" : zURL = zURL + "VERSION=1.3.0"
                 else : zURL = zURL + "VERSION=" + zVersion
-                   
-                zFormatImg = str(SubEltWMS[9]) 
+
+                zFormatImg = str(SubEltWMS[9])
                 zLayersWMS = QStringList()
                 zStyles = QStringList()
 
@@ -1906,13 +1932,13 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                    else:
                        for i in range(len(stempolayers)):
                             zLayersWMS << stempolayers[i]
-                            zStyles << '' #'default'                       
+                            zStyles << '' #'default'
                 else:
                    zLayersWMS << zLayerWMS
                    zStyles << '' #'default'
 
                 """
-                #Non utilisés .... pour l'instant               
+                #Non utilisÃ©s .... pour l'instant
                 zBBOX0, zBBOX1, zBBOX2, zBBOX3  = float(SubEltWMS[5]), float(SubEltWMS[8]), float(SubEltWMS[7]), float(SubEltWMS[6]) #4,7,6,5
                 zSizeW = int(self.iface.mapCanvas().width())
                 zSizeH = int(self.iface.mapCanvas().height())
@@ -1921,18 +1947,19 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                     vLayer = self.iface.addRasterLayer(zURL, cLayer, 'wms', zLayersWMS, zStyles, zFormatImg, zSRS)
                     if tLayerMap.has_key(cLayerMap):
                         sLayerVisibility = tLayerMap[cLayerMap]
-                        indiceVisibility = MakeVisibility(self, vLayer, cInGroup, sLayerVisibility) 
+                        indiceVisibility = MakeVisibility(self, vLayer, cInGroup, sLayerVisibility)
                     QgsMapLayerRegistry.instance().addMapLayers([vLayer])
                     if vLayer != None :
                        fLayers.append(vLayer.id())
-                       FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)                        
+                       FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
                 except :
-                    QMessageBox.information(None,"Erreur WMS:", "Les informations collectées :\n"+str(lstWMS)+"\nne permettent pas le rappatriement de la couche :\n"+str(cLayer))
+                    QMessageBox.information(None, "Erreur WMS:", "Les informations collectÃ©es :\n"+str(
+                        lstWMS)+"\nne permettent pas le rappatriement de la couche :\n"+str(cLayer))
 
     return fLayers
 
 #-----------------------------------------------
-#FONCTION TRAITEMENT FICHIER ASCII   
+#FONCTION TRAITEMENT FICHIER ASCII
 #-----------------------------------------------
 def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
     iX, iY = -1, -1
@@ -1940,7 +1967,7 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
     i = 0
     LigneData = ""
     CorrectData = True
-   
+
     for row in spamReader:
         if i==0 :Ligne = str(row)
         if i==1 :
@@ -1953,38 +1980,38 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
 
     if LigneData!="":
        dialectData = sniffer.sniff(LigneData)
-       zQuoteCaracter = str(dialectData.quotechar) 
+       zQuoteCaracter = str(dialectData.quotechar)
     else:
        zQuoteCaracter = ""
-       
+
     zDelimiter = str(dialect.delimiter)
-    if zDelimiter=="t": zDelimiter = "\\"+zDelimiter    
+    if zDelimiter=="t": zDelimiter = "\\"+zDelimiter
 
     hasHEADER = HasHeaderASCII(AsciiFile, Ligne, zDelimiter, zQuoteCaracter)
-    
+
     rb=QgsRubberBand(self.iface.mapCanvas(),True)
     rb.reset()
     feat = QgsFeature()
 
-    zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, None) 
+    zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, None)
     TempoLayer = QgsVectorLayer("Point", QString.fromLocal8Bit(cLayer)+ " (" + str(fGetTypeFile(AsciiFile)) + ")", "memory")
     TempoPoint = TempoLayer.dataProvider()
     DefineLayerProj(self, None, TempoLayer)
     RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
 
-    """                
+    """
     DestinationCRS = QgsCoordinateReferenceSystem()
     #DestinationCRS.createFromSrid(3452) #SRID WGS84
     #Quel est le SRS ID pour les CSV ???
     DestinationCRS = self.iface.mapCanvas().mapRenderer().destinationCrs()
-    TempoLayer.setCrs(DestinationCRS) 
-    """               
+    TempoLayer.setCrs(DestinationCRS)
+    """
     ListFields = []
     indexFields = 1
     zFields = Ligne.split(zDelimiter)
     NbFields = len(zFields)
 
-    #A revoir    
+    #A revoir
     if LigneData!="": zData = LigneData.split(zDelimiter)
     else: zData = zFields #Ligne.split(zDelimiter)
 
@@ -1992,13 +2019,13 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
        delta = len(zFields)-len(zData)
        for j in range(len(zData),delta+1):
            LigneData = LigneData + zDelimiter + ""
-       zData = LigneData.split(zDelimiter)    
+       zData = LigneData.split(zDelimiter)
        CorrectData = False
-   
+
     for j in range(len(zFields)):
         zTempo = str(zFields[j])
         zTempo = NetStrInfos(zTempo, False, False, False, False, ("[","]","'"," ", str(zQuoteCaracter)))
-     
+
         if hasHEADER:
             uzTempo = zTempo.upper()
             if (uzTempo == 'LATITUDE') and (iX==-1) : iX = j
@@ -2007,7 +2034,7 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
             if (uzTempo == 'LONGITUDE') and (iY==-1): iY = j
             if (uzTempo == 'Y') and (iY==-1): iY = j
             if (uzTempo == 'COORDY') and (iY==-1): iY = j
-   
+
         zTempoData = str(zData[j])
         zTempoData = NetStrInfos(zTempoData, False, False, False, False, ("[","]","'", str(zQuoteCaracter)))
 
@@ -2021,20 +2048,20 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
             else: ListFields.append(QgsField(str(zTempo), QVariant.String))
         else:
             ListFields.append(QgsField(str(zTempo), QVariant.String))
-             
-    ret = TempoPoint.addAttributes( ListFields ) 
+
+    ret = TempoPoint.addAttributes( ListFields )
     TempoLayer.updateFieldMap()
 
     if not hasHEADER:
        MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, Ligne,zDelimiter, zQuoteCaracter, NbFields)
        TempoLayer.updateExtents()
-        
+
     if LigneData!="" and CorrectData:
-       MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData,zDelimiter, zQuoteCaracter, NbFields)           
+       MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData,zDelimiter, zQuoteCaracter, NbFields)
        TempoLayer.updateExtents()
 
     for row in spamReader:
-        LigneData = str(row) 
+        LigneData = str(row)
         MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData,zDelimiter, zQuoteCaracter, NbFields)
         TempoLayer.updateExtents()
         i+= 1
@@ -2045,17 +2072,17 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
     return TempoLayer
 
 #-----------------------------------------------
-#FONCTION MAKELIGNE FICHIER ASCII   
+#FONCTION MAKELIGNE FICHIER ASCII
 #-----------------------------------------------
 def MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData, zDelimiter, zQuoteCaracter, NbFields):
-        
+
         zData = LigneData.split(zDelimiter)
         if len(zData) < NbFields:
-           delta = len(zFields)-len(zData)
-           for j in range(len(zData),delta+1):
+            delta = len(zFields)-len(zData)
+            for j in range(len(zData),delta+1):
                LigneData = LigneData + zDelimiter + ""
-           zData = LigneData.split(zDelimiter)         
-        
+            zData = LigneData.split(zDelimiter)
+
         if iX!=-1 and iY!=-1:
            zTempoData = NetStrInfos(zData[iX], False, False, False, False, ("[","]","'", str(zQuoteCaracter)))
            Xcoord = float(zTempoData)
@@ -2064,7 +2091,7 @@ def MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData, zDelimiter, zQu
            MyPoint = QgsPoint( Xcoord, Ycoord)
            rb.addPoint(MyPoint)
            g = QgsGeometry().fromPoint(MyPoint)
-        else:   
+        else:
            g = QgsGeometry()
 
         feat.setGeometry(g)
@@ -2072,26 +2099,26 @@ def MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData, zDelimiter, zQu
 
         for j in range(len(zData)):
             zTempoData = str(zData[j])
-            zTempoData = NetStrInfos(zTempoData, False, False, False, False, ("[","]","'", str(zQuoteCaracter)))  
+            zTempoData = NetStrInfos(zTempoData, False, False, False, False, ("[","]","'", str(zQuoteCaracter)))
             feat.addAttribute(j, QVariant(zTempoData))
         TempoPoint.addFeatures( [ feat ] )
 
 #-------------------------------------------------
-#FONCTION VERIFICATION ENTETE / .TAB FICHIER ASCII   
+#FONCTION VERIFICATION ENTETE / .TAB FICHIER ASCII
 #-------------------------------------------------
 def HasHeaderASCII(AsciiFILE, Ligne, zDelimiter, zQuoteCaracter):
     zHeader = False
     zAsciiFILE = AsciiFILE[0:len(AsciiFILE)-4]+".tab"
     zFieldsNameTAB = ""
     zFirstLINEASCII = ""
-    zNb = 0    
+    zNb = 0
 
     zFields = Ligne.split(zDelimiter)
     for j in range(len(zFields)):
         zTempo = str(zFields[j])
         zTempo = NetStrInfos(zTempo, False, False, False, False, ("[","]","'"," ", str(zQuoteCaracter)))
         zFirstLINEASCII = zFirstLINEASCII  + "|" + str(zTempo)
- 
+
     if os.path.exists(zAsciiFILE):
        zFile = open(zAsciiFILE, 'r')
        zLines = zFile.readlines()
@@ -2102,7 +2129,7 @@ def HasHeaderASCII(AsciiFILE, Ligne, zDelimiter, zQuoteCaracter):
            UzStr = zStr.upper()
 
            if zNb > 0:
-              zTempo = zStr.split(" ")                      
+              zTempo = zStr.split(" ")
               zFieldsNameTAB =  zFieldsNameTAB + "|" + str(zTempo[0])
               zNb = zNb - 1
 
@@ -2112,11 +2139,11 @@ def HasHeaderASCII(AsciiFILE, Ligne, zDelimiter, zQuoteCaracter):
 
     if (str(zFieldsNameTAB) == str(zFirstLINEASCII)):
         zHeader = True
-    
+
     return zHeader
 
 #----------------------------------------------
-#FONCTION RE-ORDONNANCEMENT COUCHES THEMATIQUES   
+#FONCTION RE-ORDONNANCEMENT COUCHES THEMATIQUES
 #----------------------------------------------
 def ReOrgtLayerMapAna():
     global tLayerMapAna
@@ -2125,14 +2152,14 @@ def ReOrgtLayerMapAna():
     j = 0
     zListitems = ShortDic(tLayerMapAna)
     if total == 0 : return
-    while j < total :    
-        zkey = zListitems[j] 
+    while j < total :
+        zkey = zListitems[j]
         zpos = zkey.find("_")
         zrac = zkey[0:zpos]
         zCountLayersMapAna = CountLayersMap(tLayerMapAna, zrac)
         if zCountLayersMapAna > 1 :
            for i in range(zCountLayersMapAna, 0, -1):
-               zkey = zListitems[j] 
+               zkey = zListitems[j]
                znewkey = zrac + "_" + str(i)
                DicGen[znewkey] = tLayerMapAna[zkey]
                j+= 1
@@ -2140,16 +2167,16 @@ def ReOrgtLayerMapAna():
            DicGen[zkey] = tLayerMapAna[zkey]
            j+= 1
     tLayerMapAna = DicGen
-    return 
+    return
 
 def ShortDic(zDic):
     keylist = zDic.keys()
     keylist.sort()
     return keylist
 
-    
+
 #--------------------------------------------------
-#FONCTION INSCRIPTION CHEMIN SYMBOLES PERSONNALISES   
+#FONCTION INSCRIPTION CHEMIN SYMBOLES PERSONNALISES
 #--------------------------------------------------
 def VerifSVGPaths():
     ztoto = QSettings().value( "svg/searchPathsForSVG", QVariant( "" ).toString())
@@ -2160,27 +2187,27 @@ def VerifSVGPaths():
     zpaths = ""
     for i in range(len(ztotoinfos)):
         if ztotoinfos[i] == zPathSymbols : isPresentPathSVG = True
-        zpaths = ztotoinfos[i] if i == 0 else zpaths + "|" + ztotoinfos[i]     
+        zpaths = ztotoinfos[i] if i == 0 else zpaths + "|" + ztotoinfos[i]
     if not isPresentPathSVG :
        QSettings().setValue("svg/searchPathsForSVG",str(zpaths + "|" + zPathSymbols)) if zpaths != "" else  QSettings().setValue("svg/searchPathsForSVG",str(zPathSymbols))
 
 #--------------------------------------------------
-#FONCTION REINITIALISATION BARRE PROGRESSION 1   
+#FONCTION REINITIALISATION BARRE PROGRESSION 1
 #--------------------------------------------------
 def InitProgressBar(self, zText):
     self.progressBar.setValue(0)
-    self.labelprogressBar.setText(zText) 
+    self.labelprogressBar.setText(zText)
 
 
 #-----------------------------------------------
-#FONCTION DE RECHERCHE DE DOCUMENTS  
+#FONCTION DE RECHERCHE DE DOCUMENTS
 #-----------------------------------------------
-#"""    
+#"""
 def listdirectory(self, path):
     for dirname, dirnames, filenames in os.walk(path):
         for subdirname in dirnames:
             self.labelSearchFILE.setText(">> Analyse du dossier : " + subdirname)
-            self.labelSearchFILE.repaint()            
+            self.labelSearchFILE.repaint()
         for filename in filenames:
             scandirectory(self, os.path.join(dirname, filename))
 """
@@ -2192,7 +2219,7 @@ def listdirectory(self, path):
            self.labelSearchFILE.repaint()
            listdirectory(self, currentFile)
         else : scandirectory(self, currentFile)
-    return 
+    return
 """
 
 def scandirectory(self, currentFile):
@@ -2207,4 +2234,4 @@ def scandirectory(self, currentFile):
             if zFilter.find(extension+"|")!=-1 and extension!="":
                 self.SearchFILE.addItem(currentFile)
                 self.SearchFILE.update()
-    return 
+    return

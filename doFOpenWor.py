@@ -1,18 +1,17 @@
 # -*- coding: iso-8859-1 -*-
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
+from PyQt4.QtCore import QString
+from PyQt4.QtGui import QDialog, QMessageBox
 
 from fopenwor import Ui_Dialog_OW
 import os
 
 
 class Dialog(QDialog, Ui_Dialog_OW):
-	def __init__(self, iface):
- 		QDialog.__init__(self)
- 		self.iface = iface
-	        self.setupUi(self)
+    def __init__(self, iface):
+        QDialog.__init__(self)
+        self.iface = iface
+        self.setupUi(self)
 
         def reject(self):
             self.SaveInfosIni()            
@@ -26,7 +25,7 @@ class Dialog(QDialog, Ui_Dialog_OW):
             if os.path.exists(savefile)== True :
                try : 
                    os.remove(savefile) 
-                   f = file(savefile, "w")
+                   f = open(savefile, "w")
                    
                    ssurcharge = "oui" if self.CkBx_Surcharge.isChecked() else "non"
                    sprojunit = "oui" if self.CkBx_UniProj.isChecked() else "non"
@@ -38,6 +37,6 @@ class Dialog(QDialog, Ui_Dialog_OW):
                    f.write(sSaveSessionInfos)
                    f.close()
                except ValueError:
-                   QMessageBox.information(None,"Erreur :", "Les informations de session ne sont pas sauvées.")
+                   QMessageBox.information(None,"Erreur :", "Les informations de session ne sont pas sauvï¿½es.")
             
      
