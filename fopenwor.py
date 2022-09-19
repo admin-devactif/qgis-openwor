@@ -1,3 +1,9 @@
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from builtins import object
 import sys
 try:
     from osgeo import gdal, ogr
@@ -10,11 +16,12 @@ import os
 import shutil
 import csv
 
-from ow_utils import CountCaractere, NbRowAsciiFILE, NetStrInfos, fGetTypeFile, is_number_float, is_number_int
-from symbology import FixeIndex, GetValueZoom, MakeComposer, RestoreSETTINGS, DefineLayerProj, ChangeSETTINGS, MakeVisibility, GetWMSInfos, Symbo2Vector, SymboRaster, SymboRasterMIG, SymboVectorAna, ValueTypeAna
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import QString, QStringList, QStringListModel, SIGNAL, QSettings, QVariant, Qt, QFile, QTextStream
-from PyQt4.QtGui import QFileDialog, QAbstractItemView, QMessageBox, QApplication, QCursor, QTextCursor, QDialog, QVBoxLayout, QDialogButtonBox, QDockWidget, QTreeWidget
+from .ow_utils import CountCaractere, NbRowAsciiFILE, NetStrInfos, fGetTypeFile, is_number_float, is_number_int
+from .symbology import FixeIndex, GetValueZoom, MakeComposer, RestoreSETTINGS, DefineLayerProj, ChangeSETTINGS, MakeVisibility, GetWMSInfos, Symbo2Vector, SymboRaster, SymboRasterMIG, SymboVectorAna, ValueTypeAna
+from qgis.PyQt import QtCore, QtGui
+from qgis.PyQt.QtCore import QSettings, QVariant, Qt, QFile, QTextStream
+from qgis.PyQt.QtWidgets import QFileDialog, QAbstractItemView, QMessageBox, QApplication, QDialog, QVBoxLayout, QDialogButtonBox, QDockWidget, QTreeWidget
+from qgis.PyQt.QtGui import QCursor
 from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsFeature, QgsMapLayerRegistry, QgsVectorLayer, QgsRasterLayer, QgsPoint, QgsGeometry, QgsField
 from qgis.gui import QgsProjectionSelector, QgsRubberBand
 
@@ -553,7 +560,7 @@ class Ui_Dialog_OW(object):
 
     def LoadWOR(self):
         InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText()=="" else os.path.dirname(str(self.TxtFile.toPlainText()))
-        fileName = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Document MapInfo :"),InitDir,"*.wor")
+        fileName, __, __ = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Document MapInfo :"),InitDir,"*.wor")
         if fileName.isNull(): return
         else:
            self.TxtFile.setPlainText(fileName)
@@ -567,11 +574,11 @@ class Ui_Dialog_OW(object):
 
         zKey = "MAP"+str(iMap)
         refTitle = ""
-        if tMap.has_key(zKey):
+        if zKey in tMap:
            zSTR = tMap[zKey].split("|")
            refTitle = zSTR[0]
 
-        for key in tComposer.keys():
+        for key in list(tComposer.keys()):
             findIndex = -1
             zSTR = tComposer[key].split("|")
             for i in range(len(zSTR)):
@@ -600,7 +607,7 @@ class Ui_Dialog_OW(object):
         if len(tMap)>0 :
            iMap = self.comboMap.currentIndex()
 
-           if tMap.has_key('MAP'+str(iMap)):
+           if 'MAP'+str(iMap) in tMap:
                ic='MAP'+str(iMap)
                cCarte = str(tMap[ic])
                tempo = cCarte.split("|")
@@ -644,7 +651,7 @@ class Ui_Dialog_OW(object):
                if len(tMap)>0 :
                   iMap = self.comboMap.currentIndex()
                   MyKey = 'MAP'+ str(iMap) + ".LAYER" + str(indexElementSelectionne)
-                  if tLayerMap.has_key(MyKey):
+                  if MyKey in tLayerMap:
                      self.ViewLAYERMAP.clear()
                      self.ViewLAYERMAP.setText(str(tLayerMap[MyKey]))
 
@@ -652,13 +659,13 @@ class Ui_Dialog_OW(object):
         global tMap
         if len(tMap)>0 :
            iMap = self.comboMap.currentIndex()
-           if tMap.has_key('MAP'+str(iMap)): MakeMapCanvas(self, iMap)
+           if 'MAP'+str(iMap) in tMap: MakeMapCanvas(self, iMap)
 
            zKey = NetStrInfos(str(self.comboComposer.currentText()), True, True, False, False,())
            if zKey != "Aucune mise en page":
                zKey = zKey.replace("Mise en Page ","")
                if zKey == "OpenWor": MakeComposer(self, -1, "")
-               elif tComposer.has_key("COMPOSER"+str(zKey)): MakeComposer(self, int(zKey), tComposer["COMPOSER"+str(zKey)])
+               elif "COMPOSER"+str(zKey) in tComposer: MakeComposer(self, int(zKey), tComposer["COMPOSER"+str(zKey)])
 
     def InterActiveMode(self):
         if self.CkBx_InterActiveMode.isChecked(): mystr = AnalyseWOR(self, self.TxtFile.toPlainText())
@@ -721,8 +728,8 @@ class SRSDialog(QDialog):
          layout = QVBoxLayout(self)
          self.selector = QgsProjectionSelector(self)
          buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close)
-         self.connect(buttonBox, SIGNAL("accepted()"), self.accept)
-         self.connect(buttonBox, SIGNAL("rejected()"), self.reject)
+         buttonBox.accepted.connect(self.accept)
+         buttonBox.rejected.connect(self.reject)
          layout.addWidget(self.selector)
          layout.addWidget(buttonBox)
          self.setLayout(layout)
@@ -815,7 +822,7 @@ def AnalyseWOR(self, nFile):
               QMessageBox.information(None, "Avertissement chargement : ",
                                       "La table <b>[" + zCible + "]</b> n'a pas été localisée.<br>Veuillez indiquer le chemin pour cette table.<br>A défaut, elle sera <b><font color='#ff0000'>exclue</font></b> du document restitué.")
               InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText()=="" else os.path.dirname(str(self.TxtFile.toPlainText()))
-              fileName = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Table MapInfo : ["+ zCible +"]"),InitDir,"*.tab")
+              fileName, __ = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Table MapInfo : ["+ zCible +"]"),InitDir,"*.tab")
               if not fileName.isNull():
                  zFile = str(os.path.basename(str(fileName)))
                  if zCible.upper().rfind(".TAB",len(zCible)-4)==-1: zCible=zCible+".TAB"
@@ -1084,16 +1091,16 @@ def MaketComposer(self, zlistWOR, Rac, wpos):
 def MakeHTMLView(self, tempLayer, subtempLayer):
     tempLayer+= "</table><br><hr><br>"
     tempLayer+= "<table width='100%' border=0.5px><tr align='center'><td colspan='3'><font color='#0000ff'><h3>Statistiques du document :</h3></font></td></tr>"
-    tempLayer+= "<tr><td>Nombre de carte(s) :</td><td>"+str(len(tMap))+"</td><td>("+str(tMap.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de mise(s) en page :</td><td>"+str(len(tComposer))+"</td><td>("+str(tComposer.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de fenetre(s) donnees :</td><td>"+str(len(tBrowse))+"</td><td>("+str(tBrowse.keys())+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de carte(s) :</td><td>"+str(len(tMap))+"</td><td>("+str(list(tMap.keys()))+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de mise(s) en page :</td><td>"+str(len(tComposer))+"</td><td>("+str(list(tComposer.keys()))+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de fenetre(s) donnees :</td><td>"+str(len(tBrowse))+"</td><td>("+str(list(tBrowse.keys()))+")</td></tr>"
     tempLayer += "<tr><td>Nombre de sélection(s) :</td><td>"+str(
-        len(tSelect))+"</td><td>("+str(tSelect.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de jointure(s) :</td><td>"+str(len(tJoin))+"</td><td>("+str(tJoin.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de couche(s) :</td><td>"+str(len(tLayerMap))+"</td><td>("+str(tLayerMap.keys())+")</td></tr>"
+        len(tSelect))+"</td><td>("+str(list(tSelect.keys()))+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de jointure(s) :</td><td>"+str(len(tJoin))+"</td><td>("+str(list(tJoin.keys()))+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de couche(s) :</td><td>"+str(len(tLayerMap))+"</td><td>("+str(list(tLayerMap.keys()))+")</td></tr>"
     tempLayer += "<tr><td>Nombre d'analyse(s) thématique(s) :</td><td>"+str(
-        len(tLayerMapAna))+"</td><td>("+str(tLayerMapAna.keys())+")</td></tr>"
-    tempLayer+= "<tr><td>Nombre de groupe(s) :</td><td>"+str(len(tGroupLayer))+"</td><td>("+str(tGroupLayer.keys())+")</td></tr>"
+        len(tLayerMapAna))+"</td><td>("+str(list(tLayerMapAna.keys()))+")</td></tr>"
+    tempLayer+= "<tr><td>Nombre de groupe(s) :</td><td>"+str(len(tGroupLayer))+"</td><td>("+str(list(tGroupLayer.keys()))+")</td></tr>"
     tempLayer+= "</table>"
     subtempLayer+= "<br><font color='#0000ff'><h3>Cartes (tMap) : " +str(len(tMap))+ " </h3></font>"+MefDic(tMap)
     subtempLayer+= "<br><font color='#0000ff'><h3>Compositions (tComposer) : " +str(len(tComposer))+ " </h3></font>"+MefDic(tComposer)
@@ -1115,13 +1122,13 @@ def MakeHTMLView(self, tempLayer, subtempLayer):
 
 def MefDic(DicGen):
     HTMLMefDic = ""
-    for key in DicGen.keys():
+    for key in list(DicGen.keys()):
         if str(key)!="":  HTMLMefDic = str(HTMLMefDic) + "[<b>" + str(key) + "</b>]" + " : <i>" + str(DicGen[key]) + "</i><br>"
     return HTMLMefDic
 
 def CountValideURL(DicGen):
     zValidURL = 0
-    for key in DicGen.keys():
+    for key in list(DicGen.keys()):
         if str(key)!="":
            if str(DicGen[key])!="" :  zValidURL+= 1
     return zValidURL
@@ -1178,7 +1185,7 @@ def MakeParentItem(self, zStr):
 
 def MakeItem(DicGen, parentItem):
     RacparentItem = parentItem
-    for key in DicGen.keys():
+    for key in list(DicGen.keys()):
         if str(key)!="":
            item = QtGui.QStandardItem(QtCore.QString(str(key)))
            parentItem.appendRow(item)
@@ -1260,7 +1267,7 @@ def MakeMapCanvas(self, iMap):
                  zGroups = str(tGroup[len(tGroup)-1])  + "/" +  zNameGroupLayer if len(tGroup) > 0 else zNameGroupLayer
                  #tableau pour gérer la visibilité des groupes
                  zDisplay = 1
-                 if tGroupLayer.has_key("GROUPLAYER"+str(iGroup)):
+                 if "GROUPLAYER"+str(iGroup) in tGroupLayer:
                     zInfos = tGroupLayer["GROUPLAYER"+str(iGroup)].split("|")
                     if zInfos[1].upper().find("DISPLAY OFF") != -1 : zDisplay = -1
                  tGroupVisibility["GROUP"+str(iGroup)] = zNameGroupLayer + "|" + str(zGroups) + "|" + str(zDisplay)
@@ -1287,7 +1294,7 @@ def MakeMapCanvas(self, iMap):
 
 
           ProjectHasXLS = False
-          for key in tLayer.keys():
+          for key in list(tLayer.keys()):
               sKey = str(key)
               if tLayer[sKey] == "XLS" :
                  #Fonction pour récupérer le nom de l'onglet
@@ -1424,7 +1431,7 @@ def NettGroup(ssLayer, tGroup, zGroups, zNameGroupLayer):
 
 def CountLayersMap(zDic, zMap):
     CountLayers = 0
-    for key in zDic.keys():
+    for key in list(zDic.keys()):
         if key.find(zMap)!=-1: CountLayers+= 1
     return CountLayers
 
@@ -1585,14 +1592,14 @@ def getThemeIcon(theName):
 #----------------------------------------------
 def CountAna(DicGen, Target):
     zCountAna = 0
-    for key in DicGen.keys():
+    for key in list(DicGen.keys()):
         sKey = str(key)
         if sKey.find(Target)!=-1: zCountAna+= 1
     return zCountAna
 
 def CountAnaiMapSup(iMap, index):
     CountAna = 0
-    for key in tLayerMapAna.keys():
+    for key in list(tLayerMapAna.keys()):
         skey = str(key)
         if skey.find("MAP"+str(iMap)+".")!=-1:
            stempo = skey.split(".")
@@ -1605,7 +1612,7 @@ def CountAnaiMapSup(iMap, index):
 
 def PosANA(DicGen, Target, iMap):
     zPosAna = 0
-    for key in DicGen.keys():
+    for key in list(DicGen.keys()):
         sKey = str(key)
         if sKey.find("MAP"+str(iMap)+".")!=-1:
            if sKey.find(Target)!=-1: zPosAna+= 1
@@ -1614,14 +1621,14 @@ def PosANA(DicGen, Target, iMap):
 
 def CountAnaMapi(iMap):
     CountAna = 0
-    for key in tLayerMapAna.keys():
+    for key in list(tLayerMapAna.keys()):
         sKey = str(key)
         if sKey.find("MAP"+str(iMap)+".")!=-1: CountAna+= 1
     return CountAna
 
 def CountAnaInfMapi(iMap):
     CountAna = 0
-    for key in tLayerMapAna.keys():
+    for key in list(tLayerMapAna.keys()):
         stempo = key.split(".")
         schaine = stempo[0]
         schaine = schaine.replace("MAP","")
@@ -1687,7 +1694,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
 
 
     if cLayer!="":
-        if uLayer.has_key(cLayer):
+        if cLayer in uLayer:
            vType = str(tLayer[cLayer])
 
 
@@ -1779,7 +1786,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                                fLayers.append(vLayer.id())
                                FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
 
-                         if tLayerMapAna.has_key(cLayerMap+"_"+str(i+1)):
+                         if cLayerMap+"_"+str(i+1) in tLayerMapAna:
                              zPosANA = (i+1) + zBase
                              nTypeAna = ""
                              nTypeAna = ValueTypeAna(tMap["MAP"+str(iMap)],zPosANA)
@@ -1807,7 +1814,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                      else: vLayer = AddLayerASCII(self, uLayer[cLayer],cLayer, zFeatureCount)
 
 
-                     if tLayerMap.has_key(cLayerMap):
+                     if cLayerMap in tLayerMap:
                         sLayerVisibility = tLayerMap[cLayerMap]
                         Symbo2Vector(self, vLayer, sLayerVisibility, nSizeMap, nSizeMapUnits, vType, nForceUnitsMap, nFixeUniProj, nProj4Infos, nNoZoomStep)
                         QgsMapLayerRegistry.instance().addMapLayers([vLayer])
@@ -1819,7 +1826,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
 
                   self.progressBarL.setValue(0)
                   if len(tBrowse)> 0 :
-                     for key in tBrowse.keys():
+                     for key in list(tBrowse.keys()):
                           tempo = tBrowse[key].split("|")
                           stempo = str(tempo[0])
                           if stempo.find(cLayer)!=-1:
@@ -1882,7 +1889,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                                vType = str(GetTypeTable(nFile))
                                vType = vType.upper()
 
-                           if tLayerMap.has_key(cLayerMap):
+                           if cLayerMap in tLayerMap:
                               sLayerVisibility = tLayerMap[cLayerMap]
                               if not isDEM :
                                   SymboRasterMIG(self, vLayer, nFile, tLayerMap[cLayerMap], nAnaMIG, nField, nSizeMap, nSizeMapUnits, tMap["MAP"+str(iMap)], vType, nForceUnitsMap)
@@ -1894,7 +1901,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
 
                   else:
                      vLayer = self.iface.addRasterLayer(uLayer[cLayer],cLayer)
-                     if tLayerMap.has_key(cLayerMap):
+                     if cLayerMap in tLayerMap:
                         sLayerVisibility = tLayerMap[cLayerMap]
                         SymboRaster(self, vLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, nNoZoomStep)
                         indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
@@ -1945,7 +1952,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                 """
                 try :
                     vLayer = self.iface.addRasterLayer(zURL, cLayer, 'wms', zLayersWMS, zStyles, zFormatImg, zSRS)
-                    if tLayerMap.has_key(cLayerMap):
+                    if cLayerMap in tLayerMap:
                         sLayerVisibility = tLayerMap[cLayerMap]
                         indiceVisibility = MakeVisibility(self, vLayer, cInGroup, sLayerVisibility)
                     QgsMapLayerRegistry.instance().addMapLayers([vLayer])
@@ -2170,7 +2177,7 @@ def ReOrgtLayerMapAna():
     return
 
 def ShortDic(zDic):
-    keylist = zDic.keys()
+    keylist = list(zDic.keys())
     keylist.sort()
     return keylist
 

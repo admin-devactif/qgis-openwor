@@ -1,13 +1,15 @@
 # -*- coding: iso-8859-1 -*-
 
+from __future__ import absolute_import
+from builtins import object
 from imp import reload
-from PyQt4 import QtCore
-from PyQt4.QtCore import QObject, SIGNAL
-from PyQt4.QtGui import QMenu, QAction
+from qgis.PyQt import QtCore
+from qgis.PyQt.QtCore import QObject
+from qgis.PyQt.QtWidgets import QMenu, QAction
 
 import sys
-import doAbout
-import doFOpenWor
+from . import doAbout
+from . import doFOpenWor
 
 
 class MainPlugin(object):
@@ -26,11 +28,11 @@ class MainPlugin(object):
 
     self.fopenwor = QAction("Charger des documents ...",self.iface.mainWindow())
     self.fopenwor.setText(QtCore.QCoreApplication.translate("main", "Charger des documents ..."))
-    QObject.connect(self.fopenwor,SIGNAL("triggered()"),self.clickFOpenWor)
+    self.fopenwor.triggered.connect(self.clickFOpenWor)
 
     self.about = QAction("A propos ...",self.iface.mainWindow())
     self.about.setText(QtCore.QCoreApplication.translate("main", "A propos ..."))
-    QObject.connect(self.about,SIGNAL("triggered()"),self.clickAbout)
+    self.about.triggered.connect(self.clickAbout)
 
     self.menu.addAction(self.fopenwor)
     self.menu.addSeparator()

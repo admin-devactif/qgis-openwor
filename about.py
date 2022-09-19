@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import os.path
-from PyQt4 import QtCore, QtGui
+from qgis.PyQt import QtCore, QtGui
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):

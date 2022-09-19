@@ -1,5 +1,12 @@
-from PyQt4.QtCore import QString, QVariant, Qt, QSettings, QSizeF, QPointF, QDir, QRectF
-from PyQt4.QtGui import QColor, QApplication, QCursor, QMessageBox, QDockWidget, QTreeWidget, QTextDocument, QPrinter, QFont, QBrush, QPen
+from __future__ import absolute_import
+from builtins import chr
+from builtins import str
+from builtins import range
+from builtins import object
+from qgis.PyQt.QtCore import QVariant, Qt, QSettings, QSizeF, QPointF, QDir, QRectF
+from qgis.PyQt.QtGui import QColor, QCursor, QFont, QBrush, QPen
+from qgis.PyQt.QtWidgets import QApplication, QMessageBox, QDockWidget, QTreeWidget
+from qgis.PyQt.QtPrintSupport import QPrinter
 from qgis.core import QgsVectorGradientColorRampV2, QgsCategorizedSymbolRendererV2, QgsGraduatedSymbolRendererV2
 from qgis.core import QgsSymbolV2, QgsRendererCategoryV2, QgsMapLayerRegistry, QgsFeature, QgsVectorLayer, QgsField
 from qgis.core import QgsGeometry, QgsPoint, QgsSpatialIndex, QgsRasterLayer, QgsColorRampShader, QgsRasterTransparency
@@ -9,14 +16,15 @@ from qgis.core import QgsCoordinateTransform, QgsComposition, QgsComposerMap, Qg
 from qgis.core import QgsComposerScaleBar, QgsComposerShape, QgsExpression
 from qgis.gui import QgsRubberBand, QgsSymbologyUtils, QgsComposerLegend, QgsTextAnnotationItem
 import QGis
-from measured_units import MeasureType
+from .measured_units import MeasureType
 import math
 from math import pi, sin, cos, sqrt
 from random import random, seed
 import os
 import struct
-from ow_utils import CleanExp, CountCaractere, FixeLibUnits, NetStrInfos
+from .ow_utils import CleanExp, CountCaractere, FixeLibUnits, NetStrInfos
 import ftools_utils
+from future.utils import with_metaclass
 
 tTypeAnaLib = {'PIE': 'Camemberts', 'HALF': 'Hémicycles', 'BAR': 'Histogrammes', 'STACKED': 'Histo. empilés',
                'GRADUATED': 'SymbProp', 'DENSITY': 'Densité points',
@@ -211,7 +219,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
     if zIndexField != -1:
 
         if nTypeAna == "VALUES" or nTypeAna == "RANGES":
-            if tTypeAnaLib.has_key(nTypeAna):
+            if nTypeAna in tTypeAnaLib:
                 zLayer.setLayerName(
                     zLayer.name() + " (" + tTypeAnaLib[nTypeAna] + " : " + nLabelFieldName + ")")
             zRampe = QgsVectorGradientColorRampV2(
@@ -402,8 +410,8 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(
                 self, zLayer)
-            inLayer = QgsVectorLayer(unicode(zLayer.source()),  unicode(
-                CleanName(zLayer.name())),  unicode(zLayer.dataProvider().name()))
+            inLayer = QgsVectorLayer(str(zLayer.source()),  str(
+                CleanName(zLayer.name())),  str(zLayer.dataProvider().name()))
             DefineLayerProj(self, zLayer, inLayer)
             RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
             fLayer = randomizePoints(
@@ -1111,9 +1119,9 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
 
         QGISVersionID = 0
         try:
-            QGISVersionID = int(unicode(QGis.QGIS_VERSION_INT))
+            QGISVersionID = int(str(QGis.QGIS_VERSION_INT))
         except:
-            QGISVersionID = int(unicode(QGis.qgisVersion)[0])
+            QGISVersionID = int(str(QGis.qgisVersion)[0])
 
         if QGISVersionID <= 10800:
             zLayerMIG.setDrawingStyle(QgsRasterLayer.SingleBandPseudoColor)
@@ -1278,19 +1286,19 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                 # il y a un fond ou un halo
                 zMakeHalo = ValCarac(int(aFont[1]), 2)
                 # InvRGB(long(aFont[len(aFont)-2]))
-                zFontColor = long(aFont[len(aFont)-2])
+                zFontColor = int(aFont[len(aFont)-2])
                 # InvRGB(long(aFont[len(aFont)-1]))
-                zBackColor = long(aFont[len(aFont)-1])
+                zBackColor = int(aFont[len(aFont)-1])
             else:
                 # InvRGB(long(aFont[len(aFont)-1]))
-                zFontColor = long(aFont[len(aFont)-1])
+                zFontColor = int(aFont[len(aFont)-1])
             zFontSize = int(aFont[2])
             zFontCarac = ValCarac(int(aFont[1]), 0)
 
             zFontBold = False
             zFontUnderline = False
             zFontItalic = False
-            if tStyleLabel.has_key(zFontCarac):
+            if zFontCarac in tStyleLabel:
                 TheStyle = tStyleLabel[zFontCarac]
                 zFontBold = TheStyle[0]
                 zFontUnderline = TheStyle[1]
@@ -1455,19 +1463,19 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                 zFontCarac = ValCarac(int(nProp[1]), 0)
                 # nProp[1]:concerne le halo, n'est pas joué
 
-                if tStyleLabel.has_key(zFontCarac):
+                if zFontCarac in tStyleLabel:
                     TheStyle = tStyleLabel[zFontCarac]
                     zFontBold = TheStyle[0]
                     zFontUnderline = TheStyle[1]
                     zFontItalic = TheStyle[2]
 
                 zFontSize = float(nProp[2])
-                zForeColorV = InvRGB(long(nProp[3]))
-                zForeColor = rgb_to_hex(long(nProp[3]))
+                zForeColorV = InvRGB(int(nProp[3]))
+                zForeColor = rgb_to_hex(int(nProp[3]))
 
                 if len(nProp) == 5:
-                    zBackColorV = InvRGB(long(nProp[4]))
-                    zBackColor = rgb_to_hex(long(nProp[4]))
+                    zBackColorV = InvRGB(int(nProp[4]))
+                    zBackColor = rgb_to_hex(int(nProp[4]))
 
             if X != -1 and Y != -1:
                 textItem = QgsTextAnnotationItem(self.iface.mapCanvas())
@@ -1526,7 +1534,7 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
 # FONCTION retour couleur RGB -> HEXA
 # -----------------------------------
 def rgb_to_hex(zColor):
-    zColor, zInvColor = long(zColor), 0
+    zColor, zInvColor = int(zColor), 0
     if zColor < 0:
         Red, Green, Blue = 0, 0, 0
     else:
@@ -1544,7 +1552,7 @@ def rgb_to_hex(zColor):
 
 
 def InvRGB(zColor):
-    zColor, zInvColor = long(zColor), 0
+    zColor, zInvColor = int(zColor), 0
     if zColor < 0:
         Red, Green, Blue = 0, 0, 0
     else:
@@ -1560,7 +1568,7 @@ def InvRGB(zColor):
 
 
 def StrRGB(zColor):
-    zColor = long(zColor)
+    zColor = int(zColor)
     if zColor < 0:
         sRed, sGreen, sBlue = "0", "0", "0"
     else:
@@ -1641,8 +1649,7 @@ def TypeMethode(zMethode):
 
 
 def GetValueZoom(nValue, nUnits, nSizeMap, nSizeMapUnits):
-    class Length(object):
-        __metaclass__ = MeasureType
+    class Length(with_metaclass(MeasureType, object)):
         DEFAULT_UNIT = "m"
         _TO_DEFAULT = {"mm": 0.001, "cm": 0.01, "km": 1000,
                        "in": 0.0254, "ft": 0.3048, "yd": 0.9144, "mi": 1609.34
@@ -1659,7 +1666,7 @@ def GetValueZoom(nValue, nUnits, nSizeMap, nSizeMapUnits):
     sValue = sValue.replace(nSizeMapUnits, "")
     sSizeMap = str(zSizeMap)
     sSizeMap = sSizeMap.replace(nSizeMapUnits, "")
-    zEchelle = long(float(sValue) / float(sSizeMap))
+    zEchelle = int(float(sValue) / float(sSizeMap))
     return zEchelle
 
 # ---------------------------------------
@@ -1930,8 +1937,8 @@ def loopThruPolygons(self, inLayer, numRand, design, ratio):
     sGeom = QgsGeometry()
     sPoints = []
     if design == self.tr("field"):
-        for (i, attr) in sProvider.fields().iteritems():
-            if (unicode(numRand) == attr.name()):
+        for (i, attr) in sProvider.fields().items():
+            if (str(numRand) == attr.name()):
                 index = i
                 break
     count = 10.00
@@ -2059,7 +2066,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
         vInfos = zInfos.split(",")
         zSize = float(vInfos[0])
         zTypeLine = str(vInfos[1])
-        zColorRGB = long(vInfos[2])
+        zColorRGB = int(vInfos[2])
         zLineColor = InvRGB(zColorRGB)
     else:
         zSize = 0.26
@@ -2069,7 +2076,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
     zSizeLine = str(zTempo)
     zColorLine = QString(QgsSymbolLayerV2Utils.encodeColor(zLineColor))
 
-    if tLineV2.has_key(zTypeLine):
+    if zTypeLine in tLineV2:
         zQtLine = QString(tLineV2[zTypeLine])
     else:
         zQtLine = QString("solid")
@@ -2084,7 +2091,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
     return
     """
 
-    if tLineCompositeV2.has_key(zTypeLine):
+    if zTypeLine in tLineCompositeV2:
         TheStyles = tLineCompositeV2[zTypeLine]
         zTypeLines = TheStyles[0]
         zOffsets = TheStyles[1]
@@ -2098,7 +2105,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
 
             if zSubLine[i] == '0':
                 # SIMPLELINE : props {'color', 'offset', 'penstyle', 'width', 'use_custom_dash', 'joinstyle', 'custom_dash', 'capstyle'}
-                if tSubSymbLineCompositeV2.has_key(zTypeLine):
+                if zTypeLine in tSubSymbLineCompositeV2:
                     TheSubStyles = tSubSymbLineCompositeV2[zTypeLine]
                     zSubLines = TheSubStyles[0]
                     zInfoSubLines = TheSubStyles[1]
@@ -2113,7 +2120,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                                 zSizeLine = str(zInfoSubLine[k].split("|")[1])
                             if zInfoSubLine[k].split("|")[2] != "%":
                                 zLineColor = InvRGB(
-                                    long(zInfoSubLine[k].split("|")[2]))
+                                    int(zInfoSubLine[k].split("|")[2]))
                                 zColorLine = QString(
                                     QgsSymbolLayerV2Utils.encodeColor(zLineColor))
                 zSymbol = MakeSimpleLINEV2(zSymbol, zColorLine,  str(
@@ -2127,7 +2134,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                     "MarkerLine").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
 
-                if tSubSymbSymbolCompositeV2.has_key(zTypeLine):
+                if zTypeLine in tSubSymbSymbolCompositeV2:
                     TheSubStyles = tSubSymbSymbolCompositeV2[zTypeLine]
                     zQtMarker = str(TheSubStyles[1])
                     if TheSubStyles[2] != "%":
@@ -2137,7 +2144,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                         zSizeSymbol = str(zSize)
 
                     if TheSubStyles[3] != "%":
-                        zLineColor = InvRGB(long(TheSubStyles[3]))
+                        zLineColor = InvRGB(int(TheSubStyles[3]))
                         zColorLine = QString(
                             QgsSymbolLayerV2Utils.encodeColor(zLineColor))
 
@@ -2236,7 +2243,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
 
             # Il faut définir quel est le type de représentation à appliquer :
             # SimpleFill ou SVGFill
-            if tBrushV2.has_key(zBrush):
+            if zBrush in tBrushV2:
                 zIndexPEN = FixeIndex(0, zInfosSymbos, "PEN")
                 if zIndexPEN != -1:
                     zInfos = NetStrInfos(
@@ -2309,12 +2316,12 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
 
                     if zSymbol.symbolLayerCount() > 0:
                         indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
-                        if tLineV2.has_key(zLinePen):
+                        if zLinePen in tLineV2:
                             zQtStyleBorder = QString(tLineV2[zLinePen])
                         else:
                             zQtStyleBorder = QString("solid")
                         zQtStyleBrush = QString("no")
-                        zBorderColor = InvRGB(long(zPENColor))
+                        zBorderColor = InvRGB(int(zPENColor))
                         zColor = QString(
                             QgsSymbolLayerV2Utils.encodeColor(zBorderColor))
                         zSizeLine = str(AdapteRatioMapInfo(
@@ -2360,18 +2367,18 @@ def MakeSvgBRUSHV2(vInfos):
 
 def MakeSimpleBRUSHV2(vInfos):
     # props {'color_border', 'style_border', 'offset', 'style', 'color', 'width_border'}
-    zBorderColor = InvRGB(long(vInfos[0]))
+    zBorderColor = InvRGB(int(vInfos[0]))
     zColorBorder = QString(QgsSymbolLayerV2Utils.encodeColor(zBorderColor))
 
     zStyleBorder = vInfos[1]
-    if tLineV2.has_key(zStyleBorder):
+    if zStyleBorder in tLineV2:
         zQtStyleBorder = QString(tLineV2[zStyleBorder])
     else:
         zQtStyleBorder = QString("solid")
 
     zStyle = vInfos[3]
     zQtStyle = QString(tBrushV2[zStyle])
-    zFillColor = InvRGB(long(vInfos[4]))
+    zFillColor = InvRGB(int(vInfos[4]))
     zColor = QString(QgsSymbolLayerV2Utils.encodeColor(zFillColor))
     zSize = AdapteRatioMapInfo(float(vInfos[5]), True, False)
     zWidthBorder = str(zSize)
@@ -2414,7 +2421,7 @@ def MakeFontMARKERV2(vInfos):
     zSymbolFontName = str(vInfos[3])
     zSymbolFontStyle = str(vInfos[4])
     zSymbolRotation = str(360.0-float(vInfos[5]))
-    zSymbolColor = InvRGB(long(vInfos[1]))
+    zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(zSymbolSize)
     zFillColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
 
@@ -2435,7 +2442,7 @@ def MakeSvgMARKERV2(vInfos):
     zSymbolSize = str(float(vInfos[2]))
     zSymbolCustomStyle = str(float(vInfos[3]))
     zSymbolRotation = '0.0'
-    zSymbolColor = InvRGB(long(vInfos[1]))
+    zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(AdapteRatioMapInfo(float(vInfos[2]), False, False))
     zFillColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
 
@@ -2453,16 +2460,16 @@ def MakeSimpleMARKERV2(vInfos):
     zSymbolSize = AdapteRatioMapInfo(float(vInfos[2]), False, False)
     zSymbolRotation = '0.0'
 
-    if tSymbolV2.has_key(zSymbolCode):
+    if zSymbolCode in tSymbolV2:
         zQtNameMarker = QString(tSymbolV2[zSymbolCode])
     else:
         zQtNameMarker = 'rectangle'
 
-    zSymbolColor = InvRGB(long(vInfos[1]))
+    zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(zSymbolSize)
     zFillColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
     if len(vInfos) == 4:
-        zSymbolColor = InvRGB(long(vInfos[3]))
+        zSymbolColor = InvRGB(int(vInfos[3]))
         zBorderColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
     else:
         # on n'a pas de symbole simple sans fond, on force une couleur blanche intérieure
@@ -2488,7 +2495,7 @@ def MakeSimpleMARKERV2(vInfos):
 def ReColoreSVG(zPath, zSVGFileIn, zTypeSVG, zValueSVG, zColor):
     zPathTextureColor = zSVGFileIn
     if zColor != '16777215':
-        MyColorHexa = rgb_to_hex(long(zColor))
+        MyColorHexa = rgb_to_hex(int(zColor))
         MyColorHexa = MyColorHexa.replace("#", "")
         zPathTextureColor = os.path.join(
             zPath + "/myworks/", "mapinfo_"+zTypeSVG+"_"+zValueSVG+"_"+str(MyColorHexa)+".svg")
@@ -2748,7 +2755,7 @@ def MakeFONT(zPolice, zSize, zBold, zItalic, zUnderLine, zOverLine, zStrech):
 def MakeFRAMEBRUSH(cItem, zBrush, zBackColor):
     brush = QBrush()
     zQtBrush = Qt.NoBrush
-    if tBrush.has_key(zBrush):
+    if zBrush in tBrush:
         zQtBrush = QgsSymbologyUtils.qString2BrushStyle(tBrush[zBrush])
     brush.setStyle(zQtBrush)
     brush.setColor(zBackColor)
@@ -2801,13 +2808,13 @@ def MakeTEXT(self, c, composerView, posx, posy, zInfos, zColor, zpos, dpmm, isSi
             if len(aFont) == 5:
                 # il y a un fond ou un halo
                 zMakeHalo = ValCarac(int(aFont[1]), 2)
-                zColor = InvRGB(long(aFont[len(aFont)-2]))
-                zBackColor = InvRGB(long(aFont[len(aFont)-1]))
+                zColor = InvRGB(int(aFont[len(aFont)-2]))
+                zBackColor = InvRGB(int(aFont[len(aFont)-1]))
             else:
-                zColor = InvRGB(long(aFont[len(aFont)-1]))
+                zColor = InvRGB(int(aFont[len(aFont)-1]))
             zFontCarac = ValCarac(int(aFont[1]), 0)
 
-            if tStyleLabel.has_key(zFontCarac):
+            if zFontCarac in tStyleLabel:
                 TheStyle = tStyleLabel[zFontCarac]
                 zFontBold = TheStyle[0]
                 zFontUnderline = TheStyle[1]
@@ -2876,7 +2883,7 @@ def MakeARROW(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
                     zLineSize = AdapteRatioMapInfo(
                         float(vInfos[0]), True, False)
                     zPen = str(vInfos[1])
-                    zLineColor = InvRGB(long(vInfos[2]))
+                    zLineColor = InvRGB(int(vInfos[2]))
 
     composerArrow.setOutlineWidth(zLineSize)
     #MakeFRAMEPEN(composerArrow, "2", zLineColor, zLineSize)
@@ -3029,13 +3036,13 @@ def MakeOBJECT(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
                     zLineSize = AdapteRatioMapInfo(
                         float(vInfos[0]), True, False)
                     zPen = str(vInfos[1])
-                    zLineColor = InvRGB(long(vInfos[2]))
+                    zLineColor = InvRGB(int(vInfos[2]))
                 elif x.startswith("BRUSH"):
                     zInfos = NetStrInfos(
                         x, False, False, False, False, ("BRUSH (", ")"))
                     vInfos = zInfos.split(",")
                     zBrush = str(vInfos[0])
-                    zFillColor = InvRGB(long(vInfos[1]))
+                    zFillColor = InvRGB(int(vInfos[1]))
 
     MakeFRAMEBRUSH(composerShape, zBrush, zFillColor)
     MakeFRAMEPEN(composerShape, zPen, zLineColor, zLineSize)
@@ -3088,7 +3095,7 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
                         x, False, False, False, False, ("BRUSH (", ")"))
                     vInfos = zInfos.split(",")
                     zBrush = str(vInfos[0])
-                    zFillColor = InvRGB(long(vInfos[2]))  # 1
+                    zFillColor = InvRGB(int(vInfos[2]))  # 1
                 if x.startswith("PEN"):
                     zInfos = NetStrInfos(
                         x, False, False, False, False, ("PEN (", ")"))
@@ -3096,7 +3103,7 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
                     zLineSize = AdapteRatioMapInfo(
                         float(vInfos[0]), True, False)
                     zPen = str(vInfos[1])
-                    zLineColor = InvRGB(long(vInfos[2]))
+                    zLineColor = InvRGB(int(vInfos[2]))
 
     if not isLegend and not isAttributTable:
         composerMap = QgsComposerMap(c, posx, posy, w, h)
@@ -3144,7 +3151,7 @@ def FixePaperSize(zPaper):
                }
     wpaper, hpaper = 297, 210
     zPaper = str(zPaper)
-    if formats.has_key(zPaper):
+    if zPaper in formats:
         zFormat = formats[zPaper]
         TheNameFormat = zFormat[0]
         TheQtFormat = zFormat[1]

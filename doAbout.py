@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 
-from PyQt4.QtGui import QDialog
+from qgis.PyQt.QtWidgets import QDialog
 
-from about import Ui_Dialog
+from .about import Ui_Dialog
 
 
 class Dialog(QDialog, Ui_Dialog):

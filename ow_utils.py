@@ -1,4 +1,7 @@
 
+from builtins import str
+from builtins import chr
+from builtins import range
 tMapFonction = {"Abs": ("null", 1, ("%")), "Area": ("$area", 0, ("obj")), "CartesianArea": ("$area", 0, ("obj")), "CartesianDistance": ("null", 1, ("obj")), "CartesianObjectLen": ("$length", 0, ("obj")), "CartesianPerimeter": ("$perimeter", 0, ("obj")),
                 "CentroidX": ("null", 1, ("obj")), "CentroidY": ("null", 1, ("obj")), "Chr$": ("GenericFunction", 1, ("%")), "Cos": ("cos", 1, ("%")), "CurDate": ("$now", 1, ("%")), "CurDateTime": ("null", 1, ("%")), "Day": ("day", 1, ("%")), "DeformatNumber$": ("format_number", 2, ("%", "%")),
                 "Distance": ("null", 1, ("obj")), "Format$": ("null", 2, ("%", "%")), "FormatDate$": ("format_date", 2, ("%", "%")), "FormatNumber$": ("format_number", 2, ("%", 2)), "FormatTime$": ("null", 2, ("%", "%")), "GetDate": ("$now", 0, ()), "GetTime": ("$now", 0, ()),
@@ -83,7 +86,7 @@ def NewExpression(zExpression):
                             break
                     ztempofunctions += zztempo2
                 else:
-                    if tMapFonction.has_key(zz2):
+                    if zz2 in tMapFonction:
                         zQGISFunction = tMapFonction[zz2]
                         zQGISNameFunction = zQGISFunction[0]
                         zQGISNbParamFunction = zQGISFunction[1]
@@ -104,7 +107,7 @@ def NewExpression(zExpression):
                     break
             ztempofunctions += zztempo2
         else:
-            if tMapFonction.has_key(zz):
+            if zz in tMapFonction:
                 zQGISFunction = tMapFonction[zz]
                 zQGISNameFunction = zQGISFunction[0]
                 zQGISNbParamFunction = zQGISFunction[1]

@@ -8,6 +8,9 @@
 #   c. Combine a and b (?)
 # - thorough unit testing
 
+from past.builtins import cmp
+from future.utils import raise_
+from builtins import object
 __author__ = "George Sakkis"
 
 class MeasureType(type):
@@ -31,7 +34,7 @@ class MeasureType(type):
         defUnit = classdict["DEFAULT_UNIT"]
         toDefault = classdict.get("_TO_DEFAULT") or {}
         fromDefault = classdict.get("_FROM_DEFAULT") or {}
-        units = uniq([defUnit] + toDefault.keys() + fromDefault.keys())
+        units = uniq([defUnit] + list(toDefault.keys()) + list(fromDefault.keys()))
         restUnits = units[1:]
         # form convertion matrix
         conversion_matrix = {}
@@ -40,14 +43,14 @@ class MeasureType(type):
             try: conversion_matrix[(unit,defUnit)] = toDefault[unit]
             except KeyError:
                 try: conversion_matrix[(unit,defUnit)] = 1.0 / fromDefault[unit]
-                except (KeyError,TypeError): raise LookupError, "Cannot convert %s to %s" % (unit,defUnit)
+                except (KeyError,TypeError):raise_(LookupError, "Cannot convert %s to %s" % (unit,defUnit))
         # 2. default unit -> non-default unit
         for unit in restUnits:
             # check if toDefault[unit] is number
             try: conversion_matrix[(defUnit,unit)] = fromDefault[unit]
             except KeyError:
                 try: conversion_matrix[(defUnit,unit)] = 1.0 / toDefault[unit]
-                except (KeyError,TypeError): raise LookupError, "Cannot convert %s to %s" % (defUnit,unit)
+                except (KeyError,TypeError):raise_(LookupError, "Cannot convert %s to %s" % (defUnit,unit))
         # 3. non-default unit -> non-default unit
         for fromUnit in restUnits:
             for toUnit in restUnits:
@@ -60,7 +63,7 @@ class MeasureType(type):
                                                 conversion_matrix[(fromUnit,defUnit)](value))
         ## print conversion_matrix
         # 4. convert all constants c to functions lambda x: c*x
-        for (k,v) in conversion_matrix.iteritems():
+        for (k,v) in conversion_matrix.items():
             try: conversion_matrix[k] = lambda x,i=float(v): x*i
             except (TypeError,ValueError): pass
         # update classdict                                        
@@ -111,60 +114,60 @@ class MeasureType(type):
 
         def __add__(self,other):
             try: return self.__class__(self._value + self.__coerce(other), self._unit)
-            except ValueError: raise ValueError, "can only add '%s' (not '%s') to '%s'" \
+            except ValueError:raise_(ValueError, "can only add '%s' (not '%s') to '%s'" \
                                                 % (self.__class__.__name__,
                                                    other.__class__.__name__,
-                                                   self.__class__.__name__)
+                                                   self.__class__.__name__))
         def __sub__(self,other):
             try: return self.__class__(self._value - self.__coerce(other), self._unit)
-            except ValueError: raise ValueError, "can only subtract '%s' (not '%s') from '%s'" \
+            except ValueError:raise_(ValueError, "can only subtract '%s' (not '%s') from '%s'" \
                                                 % (self.__class__.__name__,
                                                    other.__class__.__name__,
-                                                   self.__class__.__name__)
+                                                   self.__class__.__name__))
         def __iadd__(self,other):
             try: self._value += self.__coerce(other)
-            except ValueError: raise ValueError, "can only increment '%s' (not '%s') by '%s'" \
+            except ValueError:raise_(ValueError, "can only increment '%s' (not '%s') by '%s'" \
                                                 % (self.__class__.__name__,
                                                    other.__class__.__name__,
-                                                   self.__class__.__name__)
+                                                   self.__class__.__name__))
     
         def __isub__(self,other):
             try: self._value -= self.__coerce(other)
-            except ValueError: raise ValueError, "can only decrement '%s' (not '%s') by '%s'" \
+            except ValueError:raise_(ValueError, "can only decrement '%s' (not '%s') by '%s'" \
                                                 % (self.__class__.__name__,
                                                    other.__class__.__name__,
-                                                   self.__class__.__name__)
+                                                   self.__class__.__name__))
     
         def __mul__(self,other):
             try: return self.__class__(self._value * float(other), self._unit)
-            except TypeError: raise ValueError, "can only multiply '%s' (not '%s') by a number" \
-                                                % (self.__class__.__name__, other.__class__.__name__)
+            except TypeError:raise_(ValueError, "can only multiply '%s' (not '%s') by a number" \
+                                                % (self.__class__.__name__, other.__class__.__name__))
             
         __rmul__ = __mul__        
                         
         def __div__(self,other):
             try: return self.__class__(self._value / float(other), self._unit)
-            except TypeError: raise ValueError, "can only divide '%s' (not '%s') by a number" \
-                                                % (self.__class__.__name__, other.__class__.__name__)
+            except TypeError:raise_(ValueError, "can only divide '%s' (not '%s') by a number" \
+                                                % (self.__class__.__name__, other.__class__.__name__))
         def __imul__(self,other):
             try: self._value *= float(other)
-            except TypeError: raise ValueError, "can only multiply '%s' (not '%s') by a number" \
-                                                % (self.__class__.__name__, other.__class__.__name__)
+            except TypeError:raise_(ValueError, "can only multiply '%s' (not '%s') by a number" \
+                                                % (self.__class__.__name__, other.__class__.__name__))
     
         def __idiv__(self,other):
             try: self._value /= float(other)
-            except TypeError: raise ValueError, "can only divide '%s' (not '%s') by a number" \
-                                                % (self.__class__.__name__, other.__class__.__name__)
+            except TypeError:raise_(ValueError, "can only divide '%s' (not '%s') by a number" \
+                                                % (self.__class__.__name__, other.__class__.__name__))
         
         def __pow__(self,other):
             try: return self.__class__(self._value ** float(other), self._unit)
-            except TypeError: raise ValueError, "can only raise '%s' to a number (not '%s')" \
-                                                % (self.__class__.__name__, other.__class__.__name__)
+            except TypeError:raise_(ValueError, "can only raise '%s' to a number (not '%s')" \
+                                                % (self.__class__.__name__, other.__class__.__name__))
             
         def __ipow__(self,other):
             try: self._value **= float(other)
-            except TypeError: raise ValueError, "can only raise '%s' to a number (not '%s')" \
-                                                % (self.__class__.__name__, other.__class__.__name__)
+            except TypeError:raise_(ValueError, "can only raise '%s' to a number (not '%s')" \
+                                                % (self.__class__.__name__, other.__class__.__name__))
             
         ################################## 'private' Methods ##################################
     
@@ -175,8 +178,8 @@ class MeasureType(type):
         
         def __verifyUnit(cls,unit):
             if unit not in cls._UNITS:
-                raise ValueError, "'%s' is not a recognized %s unit (pick one from %s)" % \
-                                  (unit, cls.__name__, ', '.join(["'%s'" % u for u in cls._UNITS]))
+                raise_(ValueError, "'%s' is not a recognized %s unit (pick one from %s)" % \
+                                  (unit, cls.__name__, ', '.join(["'%s'" % u for u in cls._UNITS])))
         __verifyUnit = classmethod(__verifyUnit)
         
         def __coerce(self,other):

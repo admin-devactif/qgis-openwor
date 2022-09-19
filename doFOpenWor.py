@@ -1,9 +1,10 @@
 # -*- coding: iso-8859-1 -*-
 
+from __future__ import absolute_import
 from PyQt4.QtCore import QString
-from PyQt4.QtGui import QDialog, QMessageBox
+from qgis.PyQt.QtWidgets import QDialog, QMessageBox
 
-from fopenwor import Ui_Dialog_OW
+from .fopenwor import Ui_Dialog_OW
 import os
 
 

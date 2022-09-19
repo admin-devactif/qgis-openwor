@@ -27,6 +27,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.             *
  *****************************************************************************/
 """
+from __future__ import absolute_import
 
 import configparser
 import os.path
@@ -42,6 +43,6 @@ def version(): return p.get('general','version')
 def qgisMinimumVersion(): return p.get("general","qgisMinimumVersion")
 
 def classFactory(iface):
-  from main import MainPlugin
+  from .main import MainPlugin
   return MainPlugin(iface)
 
