@@ -16,8 +16,8 @@ class Ui_Dialog(object):
 
         self.label_2 = QtGui.QLabel(Dialog)
         self.labelImage = QtGui.QLabel(Dialog)
-        myPath = os.path.dirname(__file__)+"/icon.png";
-        myDefPath = myPath.replace("\\","/");
+        myPath = os.path.dirname(__file__)+"/icon.png"
+        myDefPath = myPath.replace("\\", "/")
         carIcon = QtGui.QImage(myDefPath)
         self.labelImage.setPixmap(QtGui.QPixmap.fromImage(carIcon))
 

@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsFeature, QgsProject, QgsVectorLayer, QgsRasterLayer, QgsPointXY, QgsGeometry, QgsField
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
@@ -22,8 +23,7 @@ from qgis.PyQt import QtCore, QtGui
 from qgis.PyQt.QtCore import QSettings, QVariant, Qt, QFile, QTextStream
 from qgis.PyQt.QtWidgets import QFileDialog, QAbstractItemView, QMessageBox, QApplication, QDialog, QVBoxLayout, QDialogButtonBox, QDockWidget, QTreeWidget
 from qgis.PyQt.QtGui import QCursor
-from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsFeature, QgsMapLayerRegistry, QgsVectorLayer, QgsRasterLayer, QgsPoint, QgsGeometry, QgsField
-from qgis.gui import QgsProjectionSelector, QgsRubberBand
+from qgis.gui import QgsProjectionSelectionDialog, QgsRubberBand
 
 
 global findNext
@@ -446,7 +446,7 @@ class Ui_Dialog_OW(object):
         QtCore.QObject.connect(self.comboMap, SIGNAL(
             "currentIndexChanged(QString)"), self.MakeListTables)
         QtCore.QObject.connect(self.buttonProjMap, SIGNAL(
-            "clicked()"), self.CallQgsProjectionSelector)
+            "clicked()"), self.CallQgsProjectionSelectionDialog)
         QtCore.QObject.connect(self.ViewTAB, SIGNAL(
             "doubleClicked(QModelIndex)"), self.ReturnInfosLayerMap)
         QtCore.QObject.connect(self.TreeView, SIGNAL(
@@ -545,7 +545,7 @@ class Ui_Dialog_OW(object):
            MajCtrlButtonMap(self)
 
 
-    def CallQgsProjectionSelector(self):
+    def CallQgsProjectionSelectionDialog(self):
          global nProj4
          global nProj4Infos
 
@@ -726,7 +726,7 @@ class SRSDialog(QDialog):
        def __init__(self):
          QDialog.__init__(self)
          layout = QVBoxLayout(self)
-         self.selector = QgsProjectionSelector(self)
+         self.selector = QgsProjectionSelectionDialog(self)
          buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close)
          buttonBox.accepted.connect(self.accept)
          buttonBox.rejected.connect(self.reject)
@@ -1656,7 +1656,7 @@ def FixeExtent(self):
            except: zType = "MEMORY STORAGE"
            if zType.upper().find("MEMORY STORAGE")==-1 and zType.upper().find("XLS")==-1: isOK = True
         if isOK:
-           layer.select([])
+           layer.selectByRect([])
            layer.setSelectedFeatures([feat.id() for feat in layer])
            self.iface.mapCanvas().zoomToSelected(layer)
            self.iface.mapCanvas().refresh()
@@ -1725,7 +1725,6 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                          p = vLayer.dataProvider()
                          allAttrs = p.attributeIndexes()
                          p.select(allAttrs)
-                         fields = p.fields()
                          f = QgsFeature()
 
                          while p.nextFeature(f):
@@ -1740,7 +1739,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                                else : vLayer = self.iface.addVectorLayer(zCiblePath+zTAB,zNAMETAB,"ogr")
 
                                if vLayer != None :
-                                  QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                                  QgsProject.instance().addMapLayers([vLayer])
                                   indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
                                   FixeGroupLayer(self, vLayer, zRefGroup, indiceVisibility)
 
@@ -1778,7 +1777,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                             Symbo2Vector(self, vLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, vType, nForceUnitsMap, nFixeUniProj, nProj4Infos, nNoZoomStep)
                             sLayerVisibility = tLayerMap[cLayerMap]
                             indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
-                            QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                            QgsProject.instance().addMapLayers([vLayer])
                             nCondAna = False
                             LayerSupport = True
 
@@ -1794,7 +1793,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                              if nTypeAna == "VALUES" or nTypeAna == "RANGES" :
                                 if tLayer[cLayer] == "NATIVE" or tLayer[cLayer] == "SHAPEFILE" : vLayer = self.iface.addVectorLayer(uLayer[cLayer],cLayer,"ogr")
                                 else: vLayer = AddLayerASCII(self, uLayer[cLayer],cLayer, zFeatureCount)
-                                QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                                QgsProject.instance().addMapLayers([vLayer])
 
 
                              sLayerVisibility = tLayerMapAna[cLayerMap+"_"+str(i+1)]
@@ -1817,7 +1816,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                      if cLayerMap in tLayerMap:
                         sLayerVisibility = tLayerMap[cLayerMap]
                         Symbo2Vector(self, vLayer, sLayerVisibility, nSizeMap, nSizeMapUnits, vType, nForceUnitsMap, nFixeUniProj, nProj4Infos, nNoZoomStep)
-                        QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                        QgsProject.instance().addMapLayers([vLayer])
                         indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
 
                         if vLayer != None :
@@ -1840,7 +1839,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                   prCentro = tempolayer.dataProvider()
                   ret = prCentro.addAttributes( [ QgsField("Id", QVariant.Int) ] )
                   tempolayer.updateFieldMap()
-                  ztempolayer = QgsMapLayerRegistry.instance().addMapLayer(tempolayer)
+                  ztempolayer = QgsProject.instance().addMapLayer(tempolayer)
                   if tempolayer != None :
                      fLayers.append(tempolayer.id())
                      FixeGroupLayer(self, tempolayer, cInGroup, False)
@@ -1879,8 +1878,8 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                         if os.path.exists(nFile):
                            if isDEM:
                                vLayer = self.iface.addRasterLayer(nFile, cLayer)
-                               QgsMapLayerRegistry.instance().addMapLayers([vLayer])
-                               vLayer.setDrawingStyle(QgsRasterLayer.SingleBandPseudoColor)
+                               QgsProject.instance().addMapLayers([vLayer])
+                               vLayer.setRenderer(QgsRasterLayer.SingleBandPseudoColor)
                                vLayer.setColorShadingAlgorithm(QgsRasterLayer.PseudoColorShader)
                            else:
                                nField = GetMIGFieldName(TabFile)
@@ -1894,7 +1893,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                               if not isDEM :
                                   SymboRasterMIG(self, vLayer, nFile, tLayerMap[cLayerMap], nAnaMIG, nField, nSizeMap, nSizeMapUnits, tMap["MAP"+str(iMap)], vType, nForceUnitsMap)
                               indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
-                              QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                              QgsProject.instance().addMapLayers([vLayer])
                               if vLayer != None :
                                   fLayers.append(vLayer.id())
                                   FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
@@ -1905,7 +1904,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                         sLayerVisibility = tLayerMap[cLayerMap]
                         SymboRaster(self, vLayer, tLayerMap[cLayerMap], nSizeMap, nSizeMapUnits, nNoZoomStep)
                         indiceVisibility = MakeVisibility(self, vLayer, sLayerVisibility)
-                     QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                     QgsProject.instance().addMapLayers([vLayer])
 
                      if vLayer != None :
                         fLayers.append(vLayer.id())
@@ -1955,7 +1954,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                     if cLayerMap in tLayerMap:
                         sLayerVisibility = tLayerMap[cLayerMap]
                         indiceVisibility = MakeVisibility(self, vLayer, cInGroup, sLayerVisibility)
-                    QgsMapLayerRegistry.instance().addMapLayers([vLayer])
+                    QgsProject.instance().addMapLayers([vLayer])
                     if vLayer != None :
                        fLayers.append(vLayer.id())
                        FixeGroupLayer(self, vLayer, cInGroup, indiceVisibility)
@@ -1968,7 +1967,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
 #-----------------------------------------------
 #FONCTION TRAITEMENT FICHIER ASCII
 #-----------------------------------------------
-def AddLayerASCII(self, AsciiFile, cLayer, NbRows):
+def AddLayerASCII(self, AsciiFile, cLayer, NbRows) -> QgsVectorLayer:
     iX, iY = -1, -1
     spamReader = csv.reader(open(AsciiFile, 'rb'))
     i = 0
@@ -2095,9 +2094,9 @@ def MakeLineASCII(self, rb, feat, TempoPoint, iX, iY, LigneData, zDelimiter, zQu
            Xcoord = float(zTempoData)
            zTempoData = NetStrInfos(zData[iY], False, False, False, False, ("[","]","'", str(zQuoteCaracter)))
            Ycoord = float(zTempoData)
-           MyPoint = QgsPoint( Xcoord, Ycoord)
+           MyPoint = QgsPointXY(Xcoord, Ycoord)
            rb.addPoint(MyPoint)
-           g = QgsGeometry().fromPoint(MyPoint)
+           g = QgsGeometry().fromPointXY(MyPoint)
         else:
            g = QgsGeometry()
 

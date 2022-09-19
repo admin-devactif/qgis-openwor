@@ -7,15 +7,15 @@ from qgis.PyQt.QtCore import QVariant, Qt, QSettings, QSizeF, QPointF, QDir, QRe
 from qgis.PyQt.QtGui import QColor, QCursor, QFont, QBrush, QPen
 from qgis.PyQt.QtWidgets import QApplication, QMessageBox, QDockWidget, QTreeWidget
 from qgis.PyQt.QtPrintSupport import QPrinter
-from qgis.core import QgsVectorGradientColorRampV2, QgsCategorizedSymbolRendererV2, QgsGraduatedSymbolRendererV2
-from qgis.core import QgsSymbolV2, QgsRendererCategoryV2, QgsMapLayerRegistry, QgsFeature, QgsVectorLayer, QgsField
-from qgis.core import QgsGeometry, QgsPoint, QgsSpatialIndex, QgsRasterLayer, QgsColorRampShader, QgsRasterTransparency
+from qgis.core import QgsGradientColorRamp, QgsCategorizedSymbolRenderer, QgsGraduatedSymbolRenderer
+from qgis.core import QgsSymbol, QgsRendererCategory, QgsProject, QgsFeature, QgsVectorLayer, QgsField
+from qgis.core import QgsGeometry, QgsPointXY, QgsSpatialIndex, QgsRasterLayer, QgsColorRampShader, QgsRasterTransparency
 from qgis.core import QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsCoordinateReferenceSystem, QgsApplication, QgsDistanceArea
-from qgis.core import QgsSymbolLayerV2Utils, QgsSymbolLayerV2Registry, QgsMarkerSymbolV2, QgsLineSymbolV2, QgsMapLayer
+from qgis.core import QgsSymbolLayerUtils, QgsSymbolLayerRegistry, QgsMarkerSymbol, QgsLineSymbol, QgsMapLayer
 from qgis.core import QgsCoordinateTransform, QgsComposition, QgsComposerMap, QgsComposerLabel, QgsComposerAttributeTable, QgsComposerPicture
 from qgis.core import QgsComposerScaleBar, QgsComposerShape, QgsExpression
-from qgis.gui import QgsRubberBand, QgsSymbologyUtils, QgsComposerLegend, QgsTextAnnotationItem
-import QGis
+from qgis.gui import QgsRubberBand, QgsSymbologyUtils, QgsComposerLegend, QgsTextAnnotation
+import Qgis
 from .measured_units import MeasureType
 import math
 from math import pi, sin, cos, sqrt
@@ -105,7 +105,7 @@ RatioMapInfo = 4
 # -----------------------------------------------
 
 
-def Symbo2Vector(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForceUnitsMap, nFixeUniProj, zForceCRS, zForceZoom):
+def Symbo2Vector(self, zLayer: QgsVectorLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForceUnitsMap, nFixeUniProj, zForceCRS, zForceZoom):
     tSymbo = sSymboLayer.split("|")
     nLabelFieldName = ""
     zIndex = int(GetIndexLayer(self, zLayer))
@@ -118,14 +118,14 @@ def Symbo2Vector(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nFor
             zDisplayGraphic = True
         elif sstring.upper().find('GLOBAL') != -1 and sstring.upper().find('DISPLAY GLOBAL') == -1:
             if not HasDefautLayerStyle:
-                rendererV2 = zLayer.rendererV2()
-                symbols = rendererV2.symbols()
+                renderer = zLayer.renderer()
+                symbols = renderer.symbols()
                 symbol = symbols[0]
                 astyle = sstring.split()
-                if zLayer.geometryType() == QGis.Point:
+                if zLayer.geometryType() == Qgis.Point:
                     zSymbol = MakeMARKERV2(
                         zDisplayGraphic, zLayer, symbol, astyle)
-                elif zLayer.geometryType() == QGis.Line:
+                elif zLayer.geometryType() == Qgis.Line:
                     zSymbol = MakeLINEV2(
                         zDisplayGraphic, zLayer, symbol, astyle)
                 else:
@@ -222,17 +222,17 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             if nTypeAna in tTypeAnaLib:
                 zLayer.setLayerName(
                     zLayer.name() + " (" + tTypeAnaLib[nTypeAna] + " : " + nLabelFieldName + ")")
-            zRampe = QgsVectorGradientColorRampV2(
+            zRampe = QgsGradientColorRamp(
                 QColor(0, 255, 0), QColor(255, 0, 0))
             if nTypeAna == "VALUES":
-                MakeAna = QgsCategorizedSymbolRendererV2()
+                MakeAna = QgsCategorizedSymbolRenderer()
             else:
-                MakeAna = QgsGraduatedSymbolRendererV2()
+                MakeAna = QgsGraduatedSymbolRenderer()
                 # 0-Intervalles egaux, 1-Quantile, 2-Jenks, 3-Ecart type, 4-Jolies ruptures
                 MakeAna.setMode(1)
             MakeAna.setSourceColorRamp(zRampe)
             MakeAna.setClassAttribute(nLabelFieldName)
-            zRendererV2 = zLayer.rendererV2()
+            zRendererV2 = zLayer.renderer()
 
             iAna, symbs = 0, {}
 
@@ -252,7 +252,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                     zValue = QString(zValue)
 
                     if zValue != "":
-                        symbs[iAna] = QgsSymbolV2.defaultSymbol(
+                        symbs[iAna] = QgsSymbol.defaultSymbol(
                             zLayer.geometryType())
 
                         # normalement, avant d'attaquer le bloc de reprén ( zIndex = -1 )
@@ -260,10 +260,10 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                         zValue = str(zValue)
                         zTempoD = zValue.split(":")
 
-                        if zLayer.geometryType() == QGis.Point:
+                        if zLayer.geometryType() == Qgis.Point:
                             MakeMARKERV2(False, MakeAna,
                                          symbs[iAna], zStr.split())
-                        elif zLayer.geometryType() == QGis.Line:
+                        elif zLayer.geometryType() == Qgis.Line:
                             MakeLINEV2(False, MakeAna,
                                        symbs[iAna], zStr.split())
                         else:
@@ -271,7 +271,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                                         symbs[iAna], zStr.split(), True)
 
                         if nTypeAna == "VALUES":
-                            symbs[iAna] = QgsRendererCategoryV2(
+                            symbs[iAna] = QgsRendererCategory(
                                 QVariant(zValue), symbs[iAna], zValue)
                             MakeAna.addCategory(symbs[iAna])
                         else:
@@ -287,7 +287,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             zLayer.setRendererV2(MakeAna)
 
-            QgsMapLayerRegistry.instance().addMapLayers([zLayer])
+            QgsProject.instance().addMapLayers([zLayer])
             MakeVisibility(self, zLayer, zLayerVisibility)
             self.iface.legendInterface().refreshLayerSymbology(zLayer)
             fLayer = zLayer
@@ -359,16 +359,16 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 AnaLayer.updateExtents()
                 zID += 1
 
-            zCentroideLayer = QgsMapLayerRegistry.instance().addMapLayers([
+            zCentroideLayer = QgsProject.instance().addMapLayers([
                 AnaLayer])[0]
-            symbols = AnaLayer.rendererV2().symbols()
+            symbols = AnaLayer.renderer().symbols()
             symbol = symbols[0]
 
             tInfos = tInfosAna[0].split(" ")
 
             MakeMARKERV2(False, zLayer, symbol, tInfos)
             zField = QString("Valeur")
-            AnaLayer.rendererV2().setSizeScaleField(zField)
+            AnaLayer.renderer().setSizeScaleField(zField)
 
             self.iface.legendInterface().refreshLayerSymbology(zCentroideLayer)
             fLayer = zCentroideLayer
@@ -585,7 +585,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 MyCenter = geom.centroid().asPoint()
                 refX, refY = float(MyCenter.x()), float(
                     MyCenter.y()*zPondCoordY)
-                MyCenter = QgsPoint(refX, refY)
+                MyCenter = QgsPointXY(refX, refY)
 
                 SommeValueAtt, SommeValueAttM = 0, 0
 
@@ -616,7 +616,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
                 Xcoord = float(refX + zSizeCircle)
                 Ycoord = float(refY + zSizeCircle)
-                SizeCirlePoint = QgsPoint(Xcoord, Ycoord)
+                SizeCirlePoint = QgsPointXY(Xcoord, Ycoord)
                 r = sqrt(MyCenter.sqrDist(SizeCirlePoint))
 
                 if zReproject:
@@ -643,9 +643,9 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                             while zPosition < zAngle:
                                 Xcoord = float(refX+r*cos(zPosition))
                                 Ycoord = float(refY+r*sin(zPosition))
-                                rb.addPoint(QgsPoint(Xcoord, Ycoord))
+                                rb.addPoint(QgsPointXY(Xcoord, Ycoord))
                                 if First:
-                                    FirstPoint, First = QgsPoint(
+                                    FirstPoint, First = QgsPointXY(
                                         Xcoord, Ycoord), False
                                 zPosition = zPosition + (zSens * zPasAngle)
                             zAdjust = abs((zPosition - zAngle)/2)
@@ -654,15 +654,15 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                             if iAtt == 0:
                                 Xcoord = float(refX+r*cos(zPosition))
                                 Ycoord = float(refY+r*sin(zPosition))
-                                rb.addPoint(QgsPoint(Xcoord, Ycoord))
+                                rb.addPoint(QgsPointXY(Xcoord, Ycoord))
 
                         else:  # sens horaire
                             while zPosition > zAngle:
                                 Xcoord = float(refX+r*cos(zPosition))
                                 Ycoord = float(refY+r*sin(zPosition))
-                                rb.addPoint(QgsPoint(Xcoord, Ycoord))
+                                rb.addPoint(QgsPointXY(Xcoord, Ycoord))
                                 if First:
-                                    FirstPoint, First = QgsPoint(
+                                    FirstPoint, First = QgsPointXY(
                                         Xcoord, Ycoord), False
                                 zPosition = zPosition + (zSens * zPasAngle)
                             zAdjust = abs((zPosition - zAngle)/2)
@@ -671,7 +671,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                             if iAtt == 0:
                                 Xcoord = float(refX+r*cos(zPosition))
                                 Ycoord = float(refY+r*sin(zPosition))
-                                rb.addPoint(QgsPoint(Xcoord, Ycoord))
+                                rb.addPoint(QgsPointXY(Xcoord, Ycoord))
 
                         if iAtt == len(nLayers)-1 and nTypeAna == "PIE":
                             rb.addPoint(FirstPoint)
@@ -680,12 +680,12 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                             zPosition = zStart + (zSens * DimObj)
                             Xcoord = float(refX+r*cos(zPosition))
                             Ycoord = float(refY+r*sin(zPosition))
-                            rb.addPoint(QgsPoint(Xcoord, Ycoord))
+                            rb.addPoint(QgsPointXY(Xcoord, Ycoord))
 
                         coords = []
                         [coords.append(rb.getPoint(0, ki))
                          for ki in range(rb.numberOfVertices())]
-                        g = QgsGeometry().fromPolygon([coords])
+                        g = QgsGeometry().fromPolygonXY([coords])
                         rb.reset()
 
                     else:
@@ -705,22 +705,22 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                     zID += 1
 
             rb.reset()
-            QgsMapLayerRegistry.instance().addMapLayers([AnaLayer])
+            QgsProject.instance().addMapLayers([AnaLayer])
 
             symbs = {}
-            zRampe = QgsVectorGradientColorRampV2(
+            zRampe = QgsGradientColorRamp(
                 QColor(0, 255, 0), QColor(255, 0, 0))
-            MakeAna = QgsCategorizedSymbolRendererV2()
+            MakeAna = QgsCategorizedSymbolRenderer()
             MakeAna.setSourceColorRamp(zRampe)
             MakeAna.setClassAttribute("Categorie")
-            zRendererV2 = AnaLayer.rendererV2()
+            zRendererV2 = AnaLayer.renderer()
 
             for iAtt in range(len(nLayers)):
-                symbs[iAtt] = QgsSymbolV2.defaultSymbol(
+                symbs[iAtt] = QgsSymbol.defaultSymbol(
                     AnaLayer.geometryType())
                 MakeBRUSHV2(False, MakeAna,
                             symbs[iAtt], nBrushStyle[iAtt].split(), True)
-                symbs[iAtt] = QgsRendererCategoryV2(QString(tAttributs[iAtt]), symbs[iAtt], QString(
+                symbs[iAtt] = QgsRendererCategory(QString(tAttributs[iAtt]), symbs[iAtt], QString(
                     tAttributs[iAtt]+" ("+TypeMethode(zMethode)+")"))
                 MakeAna.addCategory(symbs[iAtt])
             AnaLayer.setRendererV2(MakeAna)
@@ -915,20 +915,20 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                                 Ycoord = zPondCoordY * \
                                     float(geom.centroid().asPoint().y()) + \
                                     LastHauteur
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Xcoord = float(
                                     Xcoord + (zSignCoordX * zHauteur))
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Ycoord = float(Ycoord+zSizeBase)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Xcoord = float(Xcoord-(zSignCoordX * zHauteur))
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 LastHauteur = LastHauteur + zSizeBase
@@ -939,20 +939,20 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                                 Ycoord = zPondCoordY * \
                                     float(geom.centroid().asPoint().y())
                                 MyPoint = zTransform.transform(
-                                    QgsPoint(Xcoord, Ycoord))
+                                    QgsPointXY(Xcoord, Ycoord))
                                 rb.addPoint(MyPoint)
 
                                 Ycoord = float(Ycoord+zHauteur)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Xcoord = float(
                                     Xcoord+(zSignCoordX * zSizeBase))
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Ycoord = float(Ycoord-zHauteur)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 LastHauteur = LastHauteur + zHauteur
@@ -964,21 +964,21 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                                 Ycoord = zPondCoordY * \
                                     float(geom.centroid().asPoint().y())
                                 MyPoint = zTransform.transform(
-                                    QgsPoint(Xcoord, Ycoord))
+                                    QgsPointXY(Xcoord, Ycoord))
                                 rb.addPoint(MyPoint)
 
                                 Xcoord = float(
                                     Xcoord + (zSignCoordX * zHauteur))
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Ycoord = float(Ycoord+zSizeBase)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Xcoord = float(
                                     Xcoord - (zSignCoordX * zHauteur))
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                             else:
@@ -988,19 +988,19 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                                 Ycoord = zPondCoordY * \
                                     float(
                                         geom.centroid().asPoint().y()+LastHauteur)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Ycoord = float(Ycoord+zHauteur)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Xcoord = float(Xcoord+zSizeBase)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                                 Ycoord = float(Ycoord-zHauteur)
-                                MyPoint = QgsPoint(Xcoord, Ycoord)
+                                MyPoint = QgsPointXY(Xcoord, Ycoord)
                                 rb.addPoint(MyPoint)
 
                             LastHauteur = LastHauteur + zHauteur
@@ -1008,7 +1008,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                         coords = []
                         [coords.append(rb.getPoint(0, ki))
                          for ki in range(rb.numberOfVertices())]
-                        g = QgsGeometry().fromPolygon([coords])
+                        g = QgsGeometry().fromPolygonXY([coords])
                         rb.reset()
 
                     else:
@@ -1028,22 +1028,22 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                 Featcounter += 1
 
             rb.reset()
-            QgsMapLayerRegistry.instance().addMapLayers([AnaLayer])
+            QgsProject.instance().addMapLayers([AnaLayer])
 
             symbs = {}
-            zRampe = QgsVectorGradientColorRampV2(
+            zRampe = QgsGradientColorRamp(
                 QColor(0, 255, 0), QColor(255, 0, 0))
-            MakeAna = QgsCategorizedSymbolRendererV2()
+            MakeAna = QgsCategorizedSymbolRenderer()
             MakeAna.setSourceColorRamp(zRampe)
             MakeAna.setClassAttribute("Categorie")
-            zRendererV2 = AnaLayer.rendererV2()
+            zRendererV2 = AnaLayer.renderer()
 
             for iAtt in range(len(nLayers)):
-                symbs[iAtt] = QgsSymbolV2.defaultSymbol(
+                symbs[iAtt] = QgsSymbol.defaultSymbol(
                     AnaLayer.geometryType())
                 MakeBRUSHV2(False, MakeAna,
                             symbs[iAtt], nBrushStyle[iAtt].split(), True)
-                symbs[iAtt] = QgsRendererCategoryV2(QString(tAttributs[iAtt]), symbs[iAtt], QString(
+                symbs[iAtt] = QgsRendererCategory(QString(tAttributs[iAtt]), symbs[iAtt], QString(
                     tAttributs[iAtt]+" ("+TypeMethode(zMethode)+")"))
                 MakeAna.addCategory(symbs[iAtt])
 
@@ -1090,7 +1090,7 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
     zLayer.setLayerName(
         zLayer.name() + " (" + tTypeAnaLib["COLORC"] + " : " + nLabelFieldName + ")")
 
-    QgsMapLayerRegistry.instance().addMapLayers([zLayer])
+    QgsProject.instance().addMapLayers([zLayer])
     self.iface.legendInterface().refreshLayerSymbology(zLayer)
     legendTree = self.iface.mainWindow().findChild(
         QDockWidget, "Legend").findChild(QTreeWidget)
@@ -1115,16 +1115,16 @@ def SymboRasterMIG(self, zLayer, zURL, sSymboLayer, nAnaMIG, nLabelFieldName, nS
     # puis symbolisation : Pseudo couleur
     if os.path.exists(zURL):
         zLayerMIG = self.iface.addRasterLayer(zURL, zLayer.name() + "_MIG_TIF")
-        QgsMapLayerRegistry.instance().addMapLayers([zLayerMIG])
+        QgsProject.instance().addMapLayers([zLayerMIG])
 
         QGISVersionID = 0
         try:
-            QGISVersionID = int(str(QGis.QGIS_VERSION_INT))
+            QGISVersionID = int(str(Qgis.QGIS_VERSION_INT))
         except:
-            QGISVersionID = int(str(QGis.qgisVersion)[0])
+            QGISVersionID = int(str(Qgis.qgisVersion)[0])
 
         if QGISVersionID <= 10800:
-            zLayerMIG.setDrawingStyle(QgsRasterLayer.SingleBandPseudoColor)
+            zLayerMIG.setRenderer(QgsRasterLayer.SingleBandPseudoColor)
             zLayerMIG.setColorShadingAlgorithm(
                 QgsRasterLayer.PseudoColorShader)
             FixeALPHA("alpha 125", zLayerMIG, None)
@@ -1478,7 +1478,7 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
                     zBackColor = rgb_to_hex(int(nProp[4]))
 
             if X != -1 and Y != -1:
-                textItem = QgsTextAnnotationItem(self.iface.mapCanvas())
+                textItem = QgsTextAnnotation(self.iface.mapCanvas())
                 ztempo = zText.split("<br>")
 
                 if len(ztempo) > 1:
@@ -1502,9 +1502,9 @@ def MakeLabels(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, zType, nForce
 
                 if zProj4Dest != "":
                     zTransform = DefzTransform(zLayer, zProj4Dest)
-                    point = zTransform.transform(QgsPoint(X, Y))
+                    point = zTransform.transform(QgsPointXY(X, Y))
                 else:
-                    point = QgsPoint(X, Y)
+                    point = QgsPointXY(X, Y)
 
                 textItem.setMapPosition(point)
                 textItem.setFrameSize(QSizeF(largeur, hauteur))
@@ -1842,9 +1842,9 @@ def vectorRandom(self, n, layer, xmin, xmax, ymin, ymax):
     count = 40.00
     add = (70.00 - 40.00) / n
     while i <= n:
-        point = QgsPoint(xmin + (xmax-xmin) * random(),
+        point = QgsPointXY(xmin + (xmax-xmin) * random(),
                          ymin + (ymax-ymin) * random())
-        pGeom = QgsGeometry().fromPoint(point)
+        pGeom = QgsGeometry().fromPointXY(point)
         ids = index.intersects(pGeom.buffer(5, 5).boundingBox())
         for id in ids:
             provider.featureAtId(int(id), feat, True)
@@ -1907,9 +1907,9 @@ def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, 
     if nSize == 0:
         nSize = 0.26
 
-    zCentroideLayer = QgsMapLayerRegistry.instance().addMapLayers([
+    zCentroideLayer = QgsProject.instance().addMapLayers([
         AnaLayer])[0]
-    symbols = AnaLayer.rendererV2().symbols()
+    symbols = AnaLayer.renderer().symbols()
     symbol = symbols[0]
     symbol = InitLayerSymbol(symbol)
     if nType == "rectangle":
@@ -1947,7 +1947,7 @@ def loopThruPolygons(self, inLayer, numRand, design, ratio):
         sGeom = sFeat.geometry()
         if design == self.tr("density"):
             sDistArea = QgsDistanceArea()
-            value = int(round(numRand * sDistArea.measure(sGeom)))
+            value = int(round(numRand * sDistArea.measureArea(sGeom)))
         elif design == self.tr("field"):
             sAtMap = sFeat.attributeMap()
             value = int(sAtMap[index].toInt()[0] / ratio)
@@ -1969,8 +1969,8 @@ def simpleRandom(self, n, bound, xmin, xmax, ymin, ymax):
     count = 40.00
     add = (70.00 - 40.00) / n
     while i <= n:
-        pGeom = QgsGeometry().fromPoint(
-            QgsPoint(xmin + (xmax-xmin) * random(), ymin + (ymax-ymin) * random()))
+        pGeom = QgsGeometry().fromPointXY(
+            QgsPointXY(xmin + (xmax-xmin) * random(), ymin + (ymax-ymin) * random()))
         if pGeom.intersects(bound):
             points.append(pGeom)
             i += 1
@@ -2074,7 +2074,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
         zLineColor = QColor(255, 255, 255)
     zTempo = AdapteRatioMapInfo(zSize, True, False)
     zSizeLine = str(zTempo)
-    zColorLine = QString(QgsSymbolLayerV2Utils.encodeColor(zLineColor))
+    zColorLine = QString(QgsSymbolLayerUtils.encodeColor(zLineColor))
 
     if zTypeLine in tLineV2:
         zQtLine = QString(tLineV2[zTypeLine])
@@ -2122,7 +2122,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                                 zLineColor = InvRGB(
                                     int(zInfoSubLine[k].split("|")[2]))
                                 zColorLine = QString(
-                                    QgsSymbolLayerV2Utils.encodeColor(zLineColor))
+                                    QgsSymbolLayerUtils.encodeColor(zLineColor))
                 zSymbol = MakeSimpleLINEV2(zSymbol, zColorLine,  str(
                     float(zOffset[i])), zQtLine, zSizeLine, False)
 
@@ -2130,7 +2130,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                 # MARKERLINE : props {'color','offset', 'interval', 'rotate', 'placement'}
                 props = {'marker': '', 'offset': '0.0', 'interval': str(
                     zOffset[i]), 'rotate': '0', 'placement': ''}
-                sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+                sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
                     "MarkerLine").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
 
@@ -2146,24 +2146,24 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                     if TheSubStyles[3] != "%":
                         zLineColor = InvRGB(int(TheSubStyles[3]))
                         zColorLine = QString(
-                            QgsSymbolLayerV2Utils.encodeColor(zLineColor))
+                            QgsSymbolLayerUtils.encodeColor(zLineColor))
 
                 indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
                 props = {'color_border': zColorLine, 'offset': '0.0', 'size': zSizeSymbol,
                          'color': zColorLine, 'name': zQtMarker, 'angle': '0.0'}
-                slsub = QgsMarkerSymbolV2().createSimple(props)
+                slsub = QgsMarkerSymbol().createSimple(props)
                 zResult = zSymbol.symbolLayer(0).setSubSymbol(
                     slsub)  # indexSubSymbolLayer #Avant !
             else:
                 # Decoration LINE
                 props = {'color': zColorLine, 'offset': str(
                     zOffset[i]), 'penstyle': zQtLine, 'width': zSizeLine, 'use_custom_dash': '', 'joinstyle': 'round', 'custom_dash': '', 'capstyle': 'butt'}
-                sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+                sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
                     "SimpleLine").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
 
                 props = {'width': zSizeLine, 'color': zColorLine}
-                sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+                sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
                     "LineDecoration").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
 
@@ -2184,7 +2184,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                 zSymbol.deleteSymbolLayer(0)
                 props = {'marker': '', 'offset': '0.0',
                          'interval': '3.0', 'rotate': '0', 'placement': ''}
-                sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+                sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
                     "MarkerLine").createSymbolLayer(props)
                 zSymbol.appendSymbolLayer(sl)
 
@@ -2192,7 +2192,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
 
                 props = {'name':  QString(zPathLine),
                          'size': '3.0', 'angle': '0.0'}
-                slsub = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+                slsub = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
                     "SvgMarker").createSymbolLayer(props)
                 zSymbol.symbolLayer(
                     indexSubSymbolLayer).subSymbol().appendSymbolLayer(slsub)
@@ -2323,13 +2323,13 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                         zQtStyleBrush = QString("no")
                         zBorderColor = InvRGB(int(zPENColor))
                         zColor = QString(
-                            QgsSymbolLayerV2Utils.encodeColor(zBorderColor))
+                            QgsSymbolLayerUtils.encodeColor(zBorderColor))
                         zSizeLine = str(AdapteRatioMapInfo(
                             float(zSize), True, False))
 
                         props = {'color': zColor, 'offset': '0.0', 'penstyle': zQtStyleBorder, 'width': zSizeLine,
                                  'use_custom_dash': '', 'joinstyle': 'round', 'custom_dash': '', 'capstyle': 'butt'}
-                        slsub = QgsLineSymbolV2.createSimple(props)
+                        slsub = QgsLineSymbol.createSimple(props)
                         zResult = zSymbol.symbolLayer(0).setSubSymbol(
                             slsub)  # indexSubSymbolLayer #Avant !
 
@@ -2357,10 +2357,10 @@ def MakeSvgBRUSHV2(vInfos):
     # Quelque chose a changé depuis la 1.8  ????
     # Problème idem sur tous les styles avec SVG ...
     props = {'svgFile': zSvgFile, 'width': zWidth, 'angle': zAngle}
-    sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+    sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
         "SVGFill").createSymbolLayer(props)
     # solution a minima
-    # sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata("SimpleFill").createSymbolLayer({'color_border' : '0' , 'style_border' : '1', 'offset' : '1.0',
+    # sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata("SimpleFill").createSymbolLayer({'color_border' : '0' , 'style_border' : '1', 'offset' : '1.0',
     #            'style' : '2', 'color' : '16777215', 'width_border' : zWidth})
     return sl
 
@@ -2368,7 +2368,7 @@ def MakeSvgBRUSHV2(vInfos):
 def MakeSimpleBRUSHV2(vInfos):
     # props {'color_border', 'style_border', 'offset', 'style', 'color', 'width_border'}
     zBorderColor = InvRGB(int(vInfos[0]))
-    zColorBorder = QString(QgsSymbolLayerV2Utils.encodeColor(zBorderColor))
+    zColorBorder = QString(QgsSymbolLayerUtils.encodeColor(zBorderColor))
 
     zStyleBorder = vInfos[1]
     if zStyleBorder in tLineV2:
@@ -2379,12 +2379,12 @@ def MakeSimpleBRUSHV2(vInfos):
     zStyle = vInfos[3]
     zQtStyle = QString(tBrushV2[zStyle])
     zFillColor = InvRGB(int(vInfos[4]))
-    zColor = QString(QgsSymbolLayerV2Utils.encodeColor(zFillColor))
+    zColor = QString(QgsSymbolLayerUtils.encodeColor(zFillColor))
     zSize = AdapteRatioMapInfo(float(vInfos[5]), True, False)
     zWidthBorder = str(zSize)
     props = {'color_border': zColorBorder, 'style_border': zQtStyleBorder, 'offset': '1.0',
              'style': zQtStyle, 'color': zColor, 'width_border': zWidthBorder}
-    sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+    sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
         "SimpleFill").createSymbolLayer(props)
     return sl
 
@@ -2400,7 +2400,7 @@ def MakeSimpleLINEV2(zSymbol, zColorLine, zOffset, zQtLine, zSizeLine, zNet):
     # capstyle : square, butt, round
     props = {'color': zColorLine, 'offset': str(zOffset), 'penstyle': str(zQtLine), 'width': str(
         zSizeLine), 'use_custom_dash': '', 'joinstyle': 'round', 'custom_dash': '', 'capstyle': 'butt'}
-    sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+    sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
         "SimpleLine").createSymbolLayer(props)
     zSymbol.appendSymbolLayer(sl)
     if zNet:
@@ -2423,11 +2423,11 @@ def MakeFontMARKERV2(vInfos):
     zSymbolRotation = str(360.0-float(vInfos[5]))
     zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(zSymbolSize)
-    zFillColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
+    zFillColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
 
     props = {'color': zFillColor, 'offset': '1.0', 'angle': zSymbolRotation,
              'chr': zSymbolCHR, 'font': zSymbolFontName, 'size': zSize}
-    sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+    sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
         "FontMarker").createSymbolLayer(props)
 
     return sl
@@ -2444,11 +2444,11 @@ def MakeSvgMARKERV2(vInfos):
     zSymbolRotation = '0.0'
     zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(AdapteRatioMapInfo(float(vInfos[2]), False, False))
-    zFillColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
+    zFillColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
 
     props = {'size': zSize, 'offset': '1.0',
              'angle': zSymbolRotation, 'name': str(zSymbolFileName)}
-    sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+    sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
         "SvgMarker").createSymbolLayer(props)
 
     return sl
@@ -2467,23 +2467,23 @@ def MakeSimpleMARKERV2(vInfos):
 
     zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(zSymbolSize)
-    zFillColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
+    zFillColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
     if len(vInfos) == 4:
         zSymbolColor = InvRGB(int(vInfos[3]))
-        zBorderColor = QString(QgsSymbolLayerV2Utils.encodeColor(zSymbolColor))
+        zBorderColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
     else:
         # on n'a pas de symbole simple sans fond, on force une couleur blanche intérieure
         if int(zSymbolCode) < 40:
             zBorderColor = QString(
-                QgsSymbolLayerV2Utils.encodeColor(QColor(0, 0, 0)))
+                QgsSymbolLayerUtils.encodeColor(QColor(0, 0, 0)))
         else:
             zBorderColor = zFillColor
             zFillColor = QString(
-                QgsSymbolLayerV2Utils.encodeColor(QColor(255, 255, 255)))
+                QgsSymbolLayerUtils.encodeColor(QColor(255, 255, 255)))
 
     props = {'color_border': zBorderColor, 'offset': '1.0', 'size': zSize,
              'color': zFillColor, 'name': zQtNameMarker, 'angle': zSymbolRotation}
-    sl = QgsSymbolLayerV2Registry.instance().symbolLayerMetadata(
+    sl = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
         "SimpleMarker").createSymbolLayer(props)
     return sl
 
@@ -2540,9 +2540,14 @@ def FixeZOOM(zInfos, zLayer, zSizeMap, zSizeMapUnits, indexUnitsZoom, indexValue
             zLabel.setMinScale(zValueMinZoom)
             zLabel.setMaxScale(zValueMaxZoom)
         else:
-            zLayer.toggleScaleBasedVisibility(True)
-            zLayer.setMinimumScale(zValueMinZoom)
-            zLayer.setMaximumScale(zValueMaxZoom)
+            zLayer.setScaleBasedVisibility(True)
+
+            # setMaximumScale() and setMinimumScale(), maximumScale() and minimumScale() had the opposite meaning to other min/max scales in the API, 
+            # and their definitions have now been swapped. setMaximumScale now sets the maximum (i.e. largest scale, or most zoomed in) at which the 
+            # layer will appear, and setMinimumScale now sets the minimum (i.e. smallest scale, or most zoomed out) at which the layer will appear. 
+            # The same is true for the maximumScale and minimumScale getters.
+            zLayer.setMinimumScale(zValueMaxZoom)
+            zLayer.setMaximumScale(zValueMinZoom)
     return
 
 # ----------------------------------------------------
@@ -2620,12 +2625,15 @@ def CmToTwips(MesureEnCm):
 
 
 def DefzTransform(zLayer, zProj4Dest):
+    # TODO: check 
+    # setSourceCrs() now requires a QgsCoordinateReferenceSystem instead of crs ID, and requires a QgsCoordinateTransformContext object. 
+    # PyQGIS code can use QgsProject.instance().transformContext() for the QgsCoordinateTransformContext argument.
     destinationCRS = QgsCoordinateReferenceSystem()
     destinationCRS.createFromProj4(QString(zProj4Dest))
     sourceCRS = zLayer.crs()
     zTransform = QgsCoordinateTransform()
     zTransform.setSourceCrs(sourceCRS)
-    zTransform.setDestCRS(destinationCRS)
+    zTransform.setDestinationCrs(destinationCRS)
     return zTransform
 
 

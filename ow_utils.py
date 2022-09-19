@@ -20,7 +20,6 @@ zRetLigne = " '\\n' "
 
 def CleanExp(zLayer, zExp):
     zprovider = zLayer.dataProvider()
-    zfields = zprovider.fields()
     zCarConca = "&" if zExp.find("&") != -1 else "+"
     tExpression = zExp.split(zCarConca)
     zCleanExp = ""
