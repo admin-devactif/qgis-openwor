@@ -3,7 +3,7 @@ from builtins import chr
 from builtins import str
 from builtins import range
 from builtins import object
-from qgis.PyQt.QtCore import QVariant, Qt, QSettings, QSizeF, QPointF, QDir, QRectF
+from qgis.PyQt.QtCore import QVariant, Qt, QSettings, QSizeF, QPointF, QDir, QRectF, QTextCodec
 from qgis.PyQt.QtGui import QColor, QCursor, QFont, QBrush, QPen
 from qgis.PyQt.QtWidgets import QApplication, QMessageBox, QDockWidget, QTreeWidget
 from qgis.PyQt.QtPrintSupport import QPrinter
@@ -249,7 +249,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                         j += 1
                     zValue = NetStrInfos(
                         zValue, True, False, False, False, ("\"", "'"))
-                    zValue = QString(zValue)
+                    zValue = str(zValue)
 
                     if zValue != "":
                         symbs[iAna] = QgsSymbol.defaultSymbol(
@@ -301,7 +301,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(
                 self, zLayer)
-            AnaLayer = QgsVectorLayer("Point", QString.fromLocal8Bit(CleanName(
+            AnaLayer = QgsVectorLayer("Point", QTextCodec.codecForLocale().toUnicode(CleanName(
                 zLayer.name())) + " (SymbProp" + " : " + nLabelFieldName + ")", "memory")
             DefineLayerProj(self, zLayer, AnaLayer)
             RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
@@ -367,7 +367,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
             tInfos = tInfosAna[0].split(" ")
 
             MakeMARKERV2(False, zLayer, symbol, tInfos)
-            zField = QString("Valeur")
+            zField = str("Valeur")
             AnaLayer.renderer().setSizeScaleField(zField)
 
             self.iface.legendInterface().refreshLayerSymbology(zCentroideLayer)
@@ -548,7 +548,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(
                 self, zLayer)
-            AnaLayer = QgsVectorLayer("Polygon", QString.fromLocal8Bit(CleanName(
+            AnaLayer = QgsVectorLayer("Polygon", QTextCodec.codecForLocale().toUnicode(CleanName(
                 zLayer.name())) + " (Camemberts" + " : " + str(zAttributs) + ")", "memory")
             DefineLayerProj(self, zLayer, AnaLayer)
             RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
@@ -720,7 +720,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                     AnaLayer.geometryType())
                 MakeBRUSHV2(False, MakeAna,
                             symbs[iAtt], nBrushStyle[iAtt].split(), True)
-                symbs[iAtt] = QgsRendererCategory(QString(tAttributs[iAtt]), symbs[iAtt], QString(
+                symbs[iAtt] = QgsRendererCategory(str(tAttributs[iAtt]), symbs[iAtt], str(
                     tAttributs[iAtt]+" ("+TypeMethode(zMethode)+")"))
                 MakeAna.addCategory(symbs[iAtt])
             AnaLayer.setRendererV2(MakeAna)
@@ -841,7 +841,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
 
             zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(
                 self, zLayer)
-            AnaLayer = QgsVectorLayer("Polygon", QString.fromLocal8Bit(CleanName(
+            AnaLayer = QgsVectorLayer("Polygon", QTextCodec.codecForLocale().toUnicode(CleanName(
                 zLayer.name())) + " (Histogrammes" + " : " + str(zAttributs) + ")", "memory")
             DefineLayerProj(self, zLayer, AnaLayer)
             RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
@@ -1043,7 +1043,7 @@ def SymboVectorAna(self, zLayer, sSymboLayer, nSizeMap, nSizeMapUnits, iSymboLay
                     AnaLayer.geometryType())
                 MakeBRUSHV2(False, MakeAna,
                             symbs[iAtt], nBrushStyle[iAtt].split(), True)
-                symbs[iAtt] = QgsRendererCategory(QString(tAttributs[iAtt]), symbs[iAtt], QString(
+                symbs[iAtt] = QgsRendererCategory(str(tAttributs[iAtt]), symbs[iAtt], str(
                     tAttributs[iAtt]+" ("+TypeMethode(zMethode)+")"))
                 MakeAna.addCategory(symbs[iAtt])
 
@@ -1690,7 +1690,7 @@ def GetIndexFieldName(zLayer, nFieldName, zType):
 
         for line in mytable:
             astring = NetStrInfos(
-                str(QString.fromLocal8Bit(line)), True, True, True, False, ())
+                QTextCodec.codecForLocale().toUnicode(line), True, True, True, False, ())
             if debFields and CountFields > 0:
                 CountFields = CountFields - 1
                 if astring.startswith(nFieldName):
@@ -1887,7 +1887,7 @@ def randomizePoints(self, inLayer, minimum, design, value, nMax, nSize, nRatio, 
     add = (100.00 - 70.00) / len(points)
 
     zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, inLayer)
-    AnaLayer = QgsVectorLayer("Point", QString.fromLocal8Bit(inLayer.name(
+    AnaLayer = QgsVectorLayer("Point", QTextCodec.codecForLocale().toUnicode(inLayer.name(
     )) + " (DensitePoints" + " : " + str(value) + " - Taille "+str(nSize)+" pour "+str(ratio) + ")", "memory")
     DefineLayerProj(self, inLayer, AnaLayer)
     RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
@@ -2074,12 +2074,12 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
         zLineColor = QColor(255, 255, 255)
     zTempo = AdapteRatioMapInfo(zSize, True, False)
     zSizeLine = str(zTempo)
-    zColorLine = QString(QgsSymbolLayerUtils.encodeColor(zLineColor))
+    zColorLine = str(QgsSymbolLayerUtils.encodeColor(zLineColor))
 
     if zTypeLine in tLineV2:
-        zQtLine = QString(tLineV2[zTypeLine])
+        zQtLine = str(tLineV2[zTypeLine])
     else:
-        zQtLine = QString("solid")
+        zQtLine = str("solid")
     RefzSizeLine = zSizeLine
     RefzQtLine = zQtLine
     RefzColorLine = zColorLine
@@ -2121,7 +2121,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
                             if zInfoSubLine[k].split("|")[2] != "%":
                                 zLineColor = InvRGB(
                                     int(zInfoSubLine[k].split("|")[2]))
-                                zColorLine = QString(
+                                zColorLine = str(
                                     QgsSymbolLayerUtils.encodeColor(zLineColor))
                 zSymbol = MakeSimpleLINEV2(zSymbol, zColorLine,  str(
                     float(zOffset[i])), zQtLine, zSizeLine, False)
@@ -2145,7 +2145,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
 
                     if TheSubStyles[3] != "%":
                         zLineColor = InvRGB(int(TheSubStyles[3]))
-                        zColorLine = QString(
+                        zColorLine = str(
                             QgsSymbolLayerUtils.encodeColor(zLineColor))
 
                 indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
@@ -2170,7 +2170,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
     else:
 
         zLineSTR = StrBrush(zTypeLine)
-        zPathLine = QString("")
+        zPathLine = str("")
         zPath = os.path.dirname(__file__)
         zPath = zPath.replace("\\", "/")
         zPathLine = os.path.join(
@@ -2190,7 +2190,7 @@ def MakeLINEV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos):
 
                 indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
 
-                props = {'name':  QString(zPathLine),
+                props = {'name':  str(zPathLine),
                          'size': '3.0', 'angle': '0.0'}
                 slsub = QgsSymbolLayerRegistry.instance().symbolLayerMetadata(
                     "SvgMarker").createSymbolLayer(props)
@@ -2273,7 +2273,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
 
                 # props {'svgFile', 'width', 'angle'}
                 zBrushSTR = StrBrush(zBrush)
-                zPathTexture = QString("")
+                zPathTexture = str("")
                 zPath = os.path.dirname(__file__)
                 zPath = zPath.replace("\\", "/")
                 zPathTexture = os.path.join(
@@ -2303,7 +2303,7 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                         zSymbol.appendSymbolLayer(sl)
 
                     if os.path.exists(zPathTexture):
-                        zPathTexture = QString(zPathTexture)
+                        zPathTexture = str(zPathTexture)
                         vTempoInfos = zPathTexture + ",12.0,0.0"
                         vInfos = vTempoInfos.split(",")
                         sl = MakeSvgBRUSHV2(vInfos)
@@ -2317,12 +2317,12 @@ def MakeBRUSHV2(zDisplayGraphic, zLayer, zSymbol, zInfosSymbos, zIsAna):
                     if zSymbol.symbolLayerCount() > 0:
                         indexSubSymbolLayer = zSymbol.symbolLayerCount()-1
                         if zLinePen in tLineV2:
-                            zQtStyleBorder = QString(tLineV2[zLinePen])
+                            zQtStyleBorder = str(tLineV2[zLinePen])
                         else:
-                            zQtStyleBorder = QString("solid")
-                        zQtStyleBrush = QString("no")
+                            zQtStyleBorder = str("solid")
+                        zQtStyleBrush = str("no")
                         zBorderColor = InvRGB(int(zPENColor))
-                        zColor = QString(
+                        zColor = str(
                             QgsSymbolLayerUtils.encodeColor(zBorderColor))
                         zSizeLine = str(AdapteRatioMapInfo(
                             float(zSize), True, False))
@@ -2368,18 +2368,18 @@ def MakeSvgBRUSHV2(vInfos):
 def MakeSimpleBRUSHV2(vInfos):
     # props {'color_border', 'style_border', 'offset', 'style', 'color', 'width_border'}
     zBorderColor = InvRGB(int(vInfos[0]))
-    zColorBorder = QString(QgsSymbolLayerUtils.encodeColor(zBorderColor))
+    zColorBorder = str(QgsSymbolLayerUtils.encodeColor(zBorderColor))
 
     zStyleBorder = vInfos[1]
     if zStyleBorder in tLineV2:
-        zQtStyleBorder = QString(tLineV2[zStyleBorder])
+        zQtStyleBorder = str(tLineV2[zStyleBorder])
     else:
-        zQtStyleBorder = QString("solid")
+        zQtStyleBorder = str("solid")
 
     zStyle = vInfos[3]
-    zQtStyle = QString(tBrushV2[zStyle])
+    zQtStyle = str(tBrushV2[zStyle])
     zFillColor = InvRGB(int(vInfos[4]))
-    zColor = QString(QgsSymbolLayerUtils.encodeColor(zFillColor))
+    zColor = str(QgsSymbolLayerUtils.encodeColor(zFillColor))
     zSize = AdapteRatioMapInfo(float(vInfos[5]), True, False)
     zWidthBorder = str(zSize)
     props = {'color_border': zColorBorder, 'style_border': zQtStyleBorder, 'offset': '1.0',
@@ -2416,14 +2416,14 @@ def MakeSimpleLINEV2(zSymbol, zColorLine, zOffset, zQtLine, zSizeLine, zNet):
 def MakeFontMARKERV2(vInfos):
     # props {'color', 'offset', 'angle', 'chr', 'font', 'size'}
     zSymbolCode = str(int(vInfos[0]))
-    zSymbolCHR = QString(chr(int(vInfos[0])))
+    zSymbolCHR = str(chr(int(vInfos[0])))
     zSymbolSize = AdapteRatioMapInfo(float(vInfos[2]), False, True)
     zSymbolFontName = str(vInfos[3])
     zSymbolFontStyle = str(vInfos[4])
     zSymbolRotation = str(360.0-float(vInfos[5]))
     zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(zSymbolSize)
-    zFillColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
+    zFillColor = str(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
 
     props = {'color': zFillColor, 'offset': '1.0', 'angle': zSymbolRotation,
              'chr': zSymbolCHR, 'font': zSymbolFontName, 'size': zSize}
@@ -2444,7 +2444,7 @@ def MakeSvgMARKERV2(vInfos):
     zSymbolRotation = '0.0'
     zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(AdapteRatioMapInfo(float(vInfos[2]), False, False))
-    zFillColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
+    zFillColor = str(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
 
     props = {'size': zSize, 'offset': '1.0',
              'angle': zSymbolRotation, 'name': str(zSymbolFileName)}
@@ -2461,24 +2461,24 @@ def MakeSimpleMARKERV2(vInfos):
     zSymbolRotation = '0.0'
 
     if zSymbolCode in tSymbolV2:
-        zQtNameMarker = QString(tSymbolV2[zSymbolCode])
+        zQtNameMarker = str(tSymbolV2[zSymbolCode])
     else:
         zQtNameMarker = 'rectangle'
 
     zSymbolColor = InvRGB(int(vInfos[1]))
     zSize = str(zSymbolSize)
-    zFillColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
+    zFillColor = str(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
     if len(vInfos) == 4:
         zSymbolColor = InvRGB(int(vInfos[3]))
-        zBorderColor = QString(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
+        zBorderColor = str(QgsSymbolLayerUtils.encodeColor(zSymbolColor))
     else:
         # on n'a pas de symbole simple sans fond, on force une couleur blanche intérieure
         if int(zSymbolCode) < 40:
-            zBorderColor = QString(
+            zBorderColor = str(
                 QgsSymbolLayerUtils.encodeColor(QColor(0, 0, 0)))
         else:
             zBorderColor = zFillColor
-            zFillColor = QString(
+            zFillColor = str(
                 QgsSymbolLayerUtils.encodeColor(QColor(255, 255, 255)))
 
     props = {'color_border': zBorderColor, 'offset': '1.0', 'size': zSize,
@@ -2504,7 +2504,7 @@ def ReColoreSVG(zPath, zSVGFileIn, zTypeSVG, zValueSVG, zColor):
         mySVG = open(zSVGFileIn, 'r')
         f = open(zPathTextureColor, "w")
         for line in mySVG:
-            zStr = NetStrInfos(str(QString.fromLocal8Bit(line)),
+            zStr = NetStrInfos(QTextCodec.codecForLocale().toUnicode(line),
                                True, True, False, False, ())
             zStr = zStr.replace("fill:#000000", "fill:#"+str(MyColorHexa))
             zStr = zStr.replace(
@@ -2629,7 +2629,7 @@ def DefzTransform(zLayer, zProj4Dest):
     # setSourceCrs() now requires a QgsCoordinateReferenceSystem instead of crs ID, and requires a QgsCoordinateTransformContext object. 
     # PyQGIS code can use QgsProject.instance().transformContext() for the QgsCoordinateTransformContext argument.
     destinationCRS = QgsCoordinateReferenceSystem()
-    destinationCRS.createFromProj4(QString(zProj4Dest))
+    destinationCRS.createFromProj4(str(zProj4Dest))
     sourceCRS = zLayer.crs()
     zTransform = QgsCoordinateTransform()
     zTransform.setSourceCrs(sourceCRS)
@@ -2867,39 +2867,6 @@ def MakeARROW(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
     EndPoint = QPointF(posxe, posye)
 
     return
-    composerArrow = QgsComposerArrow(StartPoint, EndPoint, c)
-    # ou
-    #composerArrow = QgsComposerArrow(c)
-    #composerArrow.setSceneRect(QRectF(posxs,  posys, posxe, posye))
-    if wpos == (len(zlistCompo)-1):
-        return wpos+1
-    zLineColor = Qt.black
-    zLineSize = "1.0"
-
-    for mpos in range(wpos+1, len(zlistCompo)):
-        line = zlistCompo[mpos]
-        astring = str(QString.fromLocal8Bit(zlistCompo[mpos]))
-        x = NetStrInfos(astring, True, True, True, False, ())
-        if mpos > tpos:
-            if x.startswith('CREATE') or x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
-                break
-            else:
-                if x.startswith("PEN"):
-                    zInfos = NetStrInfos(
-                        x, False, False, False, False, ("PEN (", ")"))
-                    vInfos = zInfos.split(",")
-                    zLineSize = AdapteRatioMapInfo(
-                        float(vInfos[0]), True, False)
-                    zPen = str(vInfos[1])
-                    zLineColor = InvRGB(int(vInfos[2]))
-
-    composerArrow.setOutlineWidth(zLineSize)
-    #MakeFRAMEPEN(composerArrow, "2", zLineColor, zLineSize)
-    composerArrow.setArrowColor(zLineColor)
-    composerArrow.setArrowHeadWidth(5.0)
-    c.addComposerArrow(composerArrow)
-
-    return mpos
 
 
 def MakeLEGEND(self, c, composerView, posx, posy, zStyleBrush, zFillColor, zLineColor, zLineSize):
@@ -3031,7 +2998,7 @@ def MakeOBJECT(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
 
     for mpos in range(wpos+1, len(zlistCompo)):
         line = zlistCompo[mpos]
-        astring = str(QString.fromLocal8Bit(zlistCompo[mpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistCompo[mpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if mpos > tpos:
             if x.startswith('CREATE') or x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -3082,7 +3049,7 @@ def MakeFRAME(self, c, composerView, zlistCompo, Rac, wpos, dpmm):
         return wpos+1
     for mpos in range(wpos+1, len(zlistCompo)):
         line = zlistCompo[mpos]
-        astring = str(QString.fromLocal8Bit(zlistCompo[mpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistCompo[mpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if mpos > tpos:
             if x.startswith('CREATE') or x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):

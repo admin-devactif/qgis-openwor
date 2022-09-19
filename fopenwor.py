@@ -20,7 +20,7 @@ import csv
 from .ow_utils import CountCaractere, NbRowAsciiFILE, NetStrInfos, fGetTypeFile, is_number_float, is_number_int
 from .symbology import FixeIndex, GetValueZoom, MakeComposer, RestoreSETTINGS, DefineLayerProj, ChangeSETTINGS, MakeVisibility, GetWMSInfos, Symbo2Vector, SymboRaster, SymboRasterMIG, SymboVectorAna, ValueTypeAna
 from qgis.PyQt import QtCore, QtGui
-from qgis.PyQt.QtCore import QSettings, QVariant, Qt, QFile, QTextStream
+from qgis.PyQt.QtCore import QSettings, QVariant, Qt, QFile, QTextStream, QTextCodec
 from qgis.PyQt.QtWidgets import QFileDialog, QAbstractItemView, QMessageBox, QApplication, QDialog, QVBoxLayout, QDialogButtonBox, QDockWidget, QTreeWidget
 from qgis.PyQt.QtGui import QCursor
 from qgis.gui import QgsProjectionSelectionDialog, QgsRubberBand
@@ -251,7 +251,7 @@ class Ui_Dialog_OW(object):
         self.sgridLayout10.addWidget(self.TxtProjMap)
 
         zProjTemp = self.iface.mapCanvas().mapRenderer().destinationCrs()
-        nProj4 = QString(zProjTemp.toProj4())
+        nProj4 = str(zProjTemp.toProj4())
         destinationCRS = QgsCoordinateReferenceSystem()
         destinationCRS.createFromProj4(nProj4)
 
@@ -486,7 +486,7 @@ class Ui_Dialog_OW(object):
            zTempo = str(zProjTemp.authid())
            zTempo.replace("EPSG:", "")
            nProj4Infos = str(zProjTemp.description()) + "|" + str(nProj4) + "|" + \
-               zTempo.replace("EPSG:", "") + "|" + QString(zProjTemp.toProj4())
+               zTempo.replace("EPSG:", "") + "|" + str(zProjTemp.toProj4())
            self.iface.mapCanvas().mapRenderer().setProjectionsEnabled(0)
 
            sprojunit = str(p.get('general', 'projunit'))
@@ -560,7 +560,8 @@ class Ui_Dialog_OW(object):
 
     def LoadWOR(self):
         InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText()=="" else os.path.dirname(str(self.TxtFile.toPlainText()))
-        fileName, __, __ = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Document MapInfo :"),InitDir,"*.wor")
+        
+        fileName, __, __ = QFileDialog.getOpenFileName(None,"Document MapInfo :",InitDir,"*.wor")
         if fileName.isNull(): return
         else:
            self.TxtFile.setPlainText(fileName)
@@ -622,7 +623,7 @@ class Ui_Dialog_OW(object):
                layero = NetStrInfos(layero, False, True, False, False, ("Map From", "Map from", "MAP FROM","|"))
                ssLayer = layero.split(",")
 
-               nTAB = QStringList()
+               nTAB = list()
                for i in range(len(ssLayer)):
                    nLAYER = NetStrInfos(ssLayer[i], True, True, False, False, (")"))
                    if nLAYER.upper().find("GROUPLAYER")==-1: nTAB <<  nLAYER
@@ -672,7 +673,7 @@ class Ui_Dialog_OW(object):
 
     def FixenProj4(self, theProj):
         destinationCRS = QgsCoordinateReferenceSystem()
-        destinationCRS.createFromProj4(QString(theProj))
+        destinationCRS.createFromProj4(str(theProj))
         self.iface.mapCanvas().mapRenderer().setDestinationCrs(destinationCRS)
         self.iface.mapCanvas().setMapUnits(destinationCRS.mapUnits())
         self.iface.mapCanvas().updateScale()
@@ -745,7 +746,7 @@ def MajCtrlButtonMap(self):
         global tMap
         global tLayer
 
-        if QString(self.TxtFile.toPlainText()) == "" :
+        if str(self.TxtFile.toPlainText()) == "" :
            self.labelMap.setText("Aucune carte :")
            self.buttonMap.setEnabled(False)
            return
@@ -789,7 +790,7 @@ def AnalyseWOR(self, nFile):
 
     for k in range(len(mylistWOR)):
         line = mylistWOR[k]
-        astring = str(QString.fromLocal8Bit(mylistWOR[k]))
+        astring = QTextCodec.codecForLocale().toUnicode(mylistWOR[k])
         mytextfile = mytextfile + astring
 
         #Progression de l'analyse
@@ -822,7 +823,7 @@ def AnalyseWOR(self, nFile):
               QMessageBox.information(None, "Avertissement chargement : ",
                                       "La table <b>[" + zCible + "]</b> n'a pas été localisée.<br>Veuillez indiquer le chemin pour cette table.<br>A défaut, elle sera <b><font color='#ff0000'>exclue</font></b> du document restitué.")
               InitDir = os.path.dirname(__file__) if self.TxtFile.toPlainText()=="" else os.path.dirname(str(self.TxtFile.toPlainText()))
-              fileName, __ = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit("Table MapInfo : ["+ zCible +"]"),InitDir,"*.tab")
+              fileName, __ = QFileDialog.getOpenFileName(None,"Table MapInfo : ["+ zCible +"]",InitDir,"*.tab")
               if not fileName.isNull():
                  zFile = str(os.path.basename(str(fileName)))
                  if zCible.upper().rfind(".TAB",len(zCible)-4)==-1: zCible=zCible+".TAB"
@@ -930,7 +931,7 @@ def MaketMap(self, zlistWOR, Rac, wpos):
     zMap = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
     for mpos in range(wpos+1, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[mpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[mpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if mpos > tpos :
             if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or  x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
@@ -957,7 +958,7 @@ def MaketLayerMap(self, zlistWOR, wpos, indexMap):
     zLayerMap, zKey = "", ""
     if wpos == (len(zlistWOR)-1): return wpos+1
     for lpos in range(wpos, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[lpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[lpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('GROUPLAYER') or x.startswith('LAYOUT') or  x.startswith('SET LEGEND') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('BROWSE *') or x.startswith('MAP FROM') or x.startswith('DIM WORKSPACEMAXIMIZEDWINDOW') or x.startswith('SET COORDSYS') or lpos==(len(zlistWOR)-1):
            tzLayerMap = zLayerMap.split("|[LAYER]|")
@@ -997,7 +998,7 @@ def MaketGroupLayer(self, zlistWOR, wpos, indexMap):
     zGroupLayer, zKey = "", ""
     if wpos == (len(zlistWOR)-1): return wpos+1
     for gpos in range(wpos, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[gpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[gpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE')  or x.startswith('ADD COLUMN') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
            tzGroupLayer = zGroupLayer.split("|[GROUPLAYER]|")
@@ -1017,7 +1018,7 @@ def MaketSelect(self, zlistWOR, Rac, wpos):
     zSelect = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
     for spos in range(wpos+1, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[spos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[spos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE')  or x.startswith('ADD COLUMN') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
            break
@@ -1034,7 +1035,7 @@ def MaketJoin(self, zlistWOR, Rac, wpos):
     zJoin = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
     for spos in range(wpos+1, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[spos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[spos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE')  or x.startswith('ADD COLUMN') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
            break
@@ -1052,7 +1053,7 @@ def MaketBrowse(self, zlistWOR, Rac, wpos):
     zBrowse = Rac
     if wpos == (len(zlistWOR)-1): return wpos+1
     for bpos in range(wpos+1, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[bpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[bpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('SET WINDOW FRONTWINDOW() PRINTER') or x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
            break
@@ -1071,7 +1072,7 @@ def MaketComposer(self, zlistWOR, Rac, wpos):
     debComposer = False
     if wpos == (len(zlistWOR)-1): return wpos+1
     for cpos in range(wpos+1, len(zlistWOR)):
-        astring = str(QString.fromLocal8Bit(zlistWOR[cpos]))
+        astring = QTextCodec.codecForLocale().toUnicode(zlistWOR[cpos])
         x = NetStrInfos(astring, True, True, True, False, ())
         if x.startswith('LAYOUT') or x.startswith('SET WINDOW FRONTWINDOW() TITLE') or x.startswith('SELECT') or x.startswith('BROWSE *') or x.startswith('MAP FROM '):
            break
@@ -1178,7 +1179,7 @@ def MakeTreeView(self):
 
 def MakeParentItem(self, zStr):
     parentItem = self.model.invisibleRootItem()
-    item = QtGui.QStandardItem(QtCore.QString(zStr))
+    item = QtGui.QStandardItem(zStr)
     parentItem.appendRow(item)
     return item
 
@@ -1187,11 +1188,11 @@ def MakeItem(DicGen, parentItem):
     RacparentItem = parentItem
     for key in list(DicGen.keys()):
         if str(key)!="":
-           item = QtGui.QStandardItem(QtCore.QString(str(key)))
+           item = QtGui.QStandardItem(str(key))
            parentItem.appendRow(item)
            parentItem = item
 
-           item = QtGui.QStandardItem(QtCore.QString(str(DicGen[key])))
+           item = QtGui.QStandardItem(str(DicGen[key]))
            parentItem.appendRow(item)
            parentItem = RacparentItem
 
@@ -1251,7 +1252,7 @@ def MakeMapCanvas(self, iMap):
 
           if zUnitsMap == "IN" and zDD:  zUnitsMap = zUnitsMap + "DD"
 
-          tGroup = QStringList()
+          tGroup = list()
           zLayersMap = CountLayersMap(tLayerMap, ic+".LAYER")
           iLayersMap, iGroupsMap, iEltLegend = 1, 1, 1
           tLayerGroup = {}
@@ -1360,7 +1361,7 @@ def MakeMapCanvas(self, iMap):
                 self.iface.mapCanvas().refresh()
 
              zUnitsProj = NetStrInfos(zProj.split(",")[6], False, False, True, False, ("\"", "'"))
-             zUnitsProjList = QStringList()
+             zUnitsProjList = list()
              zUnitsProjList << "IN" << "DD" << "MM" << "CM" << "KM" << "M"
 
              if (zUnitsProjList.contains(zUnitsProj)):
@@ -1394,14 +1395,14 @@ def MakeGroupLayer(self, cGroup):
        tGroup = cGroup.split("/")
        for i in range(len(tGroup)):
            zGroup = str(tGroup[i])
-           itemList = legendTree.findItems(QString(zGroup), Qt.MatchExactly|Qt.MatchCaseSensitive|Qt.MatchRecursive)
+           itemList = legendTree.findItems(str(zGroup), Qt.MatchExactly|Qt.MatchCaseSensitive|Qt.MatchRecursive)
            if len(itemList)>0:
               itemGroup = itemList[0]
            else:
               while i < len(tGroup):
                  zGroup = str(tGroup[i])
                  legend.addGroup(zGroup, False, itemGroup)
-                 itemList = legendTree.findItems(QString(zGroup), Qt.MatchExactly|Qt.MatchCaseSensitive|Qt.MatchRecursive)
+                 itemList = legendTree.findItems(str(zGroup), Qt.MatchExactly|Qt.MatchCaseSensitive|Qt.MatchRecursive)
                  if len(itemList): itemGroup = itemList[len(itemList)-1]
                  i+= 1
               break
@@ -1461,7 +1462,7 @@ def GetTypeTable(nTable):
     mytable = open(nTable, 'r')
     nType=""
     for line in mytable:
-        astring=str(QString.fromLocal8Bit(line))
+        astring=QTextCodec.codecForLocale().toUnicode(line)
         astring = astring.upper()
         if astring.find('TYPE')!=-1:
            lst = astring.split()
@@ -1475,7 +1476,7 @@ def GetRangeTableXLS(nTable):
     mytable = open(nTable, 'r')
     nRange=""
     for line in mytable:
-        astring=str(QString.fromLocal8Bit(line))
+        astring=QTextCodec.codecForLocale().toUnicode(line)
         astring = astring.upper()
         if astring.find('TYPE')!=-1:
            lst = astring.split()
@@ -1494,7 +1495,7 @@ def GetRasterFileMIG(nTable):
     mytable = open(nTable, 'r')
     nType=""
     for line in mytable:
-        astring=str(QString.fromLocal8Bit(line))
+        astring=QTextCodec.codecForLocale().toUnicode(line)
         if astring.find('\Interpolator\Source Data\Table')!=-1:
            lst = astring.split("=")
            nType = NetStrInfos(lst[1], True, True, False, False, ("\""))
@@ -1506,7 +1507,7 @@ def GetMIGFieldName(nTable):
     mytable = open(nTable, 'r')
     nType=""
     for line in mytable:
-        astring=str(QString.fromLocal8Bit(line))
+        astring=QTextCodec.codecForLocale().toUnicode(line)
         if astring.find('\Interpolator\Source Data\Expression')>-1:
            lst = astring.split("=")
            nType = NetStrInfos(lst[1], True, True, False, False, ("\""))
@@ -1525,7 +1526,7 @@ def GetRessourceFile(nTable):
     mytable = open(nTable, 'r')
     nType=""
     for line in mytable:
-        astring=str(QString.fromLocal8Bit(line))
+        astring=QTextCodec.codecForLocale().toUnicode(line)
         x = astring.upper()
         if x.find('OPEN TABLE')!=-1:
            #on récupère le chemin du fichier
@@ -1553,7 +1554,7 @@ def GetRasterFile(nTable, IsSHP, IsASCII):
         mytable = open(nTable, 'r')
         nType=""
         for line in mytable:
-            astring=str(QString.fromLocal8Bit(line))
+            astring=QTextCodec.codecForLocale().toUnicode(line)
             x = astring.upper()
             if x.find('FILE')!=-1: #>
                #on récupère le chemin du fichier
@@ -1835,7 +1836,7 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
 
 
               else:
-                  tempolayer = QgsVectorLayer("Point", QString.fromLocal8Bit(cLayer)+ " (couche vide)", "memory")
+                  tempolayer = QgsVectorLayer("Point", QTextCodec.codecForLocale().toUnicode(cLayer)+ " (couche vide)", "memory")
                   prCentro = tempolayer.dataProvider()
                   ret = prCentro.addAttributes( [ QgsField("Id", QVariant.Int) ] )
                   tempolayer.updateFieldMap()
@@ -1922,8 +1923,8 @@ def MakeLayer(self, cLayer, cLayerMap, cInGroup, iMap, nSizeMap, nSizeMapUnits):
                 else : zURL = zURL + "VERSION=" + zVersion
 
                 zFormatImg = str(SubEltWMS[9])
-                zLayersWMS = QStringList()
-                zStyles = QStringList()
+                zLayersWMS = list()
+                zStyles = list()
 
                 zLayerWMS = str(SubEltWMS[2])
                 zStyle = str(SubEltWMS[3])
@@ -2000,7 +2001,7 @@ def AddLayerASCII(self, AsciiFile, cLayer, NbRows) -> QgsVectorLayer:
     feat = QgsFeature()
 
     zProjectionSetting, zProjectionCRSValue = ChangeSETTINGS(self, None)
-    TempoLayer = QgsVectorLayer("Point", QString.fromLocal8Bit(cLayer)+ " (" + str(fGetTypeFile(AsciiFile)) + ")", "memory")
+    TempoLayer = QgsVectorLayer("Point", QTextCodec.codecForLocale().toUnicode(cLayer)+ " (" + str(fGetTypeFile(AsciiFile)) + ")", "memory")
     TempoPoint = TempoLayer.dataProvider()
     DefineLayerProj(self, None, TempoLayer)
     RestoreSETTINGS(zProjectionSetting, zProjectionCRSValue)
@@ -2131,7 +2132,7 @@ def HasHeaderASCII(AsciiFILE, Ligne, zDelimiter, zQuoteCaracter):
        zFile.close()
 
        for i in range(len(zLines)):
-           zStr = NetStrInfos(str(QString.fromLocal8Bit(zLines[i])), True, True, False, False, ())
+           zStr = NetStrInfos(QTextCodec.codecForLocale().toUnicode(zLines[i]), True, True, False, False, ())
            UzStr = zStr.upper()
 
            if zNb > 0:

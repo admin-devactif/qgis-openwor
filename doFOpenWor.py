@@ -1,7 +1,6 @@
 # -*- coding: iso-8859-1 -*-
 
 from __future__ import absolute_import
-from PyQt4.QtCore import QString
 from qgis.PyQt.QtWidgets import QDialog, QMessageBox
 
 from .fopenwor import Ui_Dialog_OW
@@ -20,7 +19,7 @@ class Dialog(QDialog, Ui_Dialog_OW):
 
         def SaveInfosIni(self):
             self.TxtFile.setReadOnly(False)
-            sfileName = QString(self.TxtFile.toPlainText())
+            sfileName = self.TxtFile.toPlainText()
             self.TxtFile.setReadOnly(True)
             savefile = os.path.join(os.path.dirname(__file__),"savesession.ini")
             if os.path.exists(savefile)== True :
@@ -38,6 +37,6 @@ class Dialog(QDialog, Ui_Dialog_OW):
                    f.write(sSaveSessionInfos)
                    f.close()
                except ValueError:
-                   QMessageBox.information(None,"Erreur :", "Les informations de session ne sont pas sauv�es.")
+                   QMessageBox.information(None,"Erreur :", "Les informations de session ne sont pas sauvées.")
             
      
