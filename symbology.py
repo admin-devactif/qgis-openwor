@@ -1,17 +1,24 @@
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import QString, QVariant, Qt, QSettings
-from PyQt4.QtGui import QColor, QApplication, QCursor, QMessageBox, QDockWidget, QTreeWidget
-from qgis.core import QgsVectorGradientColorRampV2, QgsCategorizedSymbolRendererV2, QgsGraduatedSymbolRendererV2, QgsSymbolV2, QgsRendererCategoryV2, QgsMapLayerRegistry, QgsFeature, QgsVectorLayer, QgsField, QgsGeometry, QgsPoint, QgsSpatialIndex, QgsRasterLayer, QgsColorRampShader, QgsRasterTransparency, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsCoordinateReferenceSystem, QgsApplication
-from qgis.gui import QgsRubberBand
+from PyQt4.QtCore import QString, QVariant, Qt, QSettings, QSizeF, QPointF, QDir, QRectF
+from PyQt4.QtGui import QColor, QApplication, QCursor, QMessageBox, QDockWidget, QTreeWidget, QTextDocument, QPrinter, QFont, QBrush, QPen
+from qgis.core import QgsVectorGradientColorRampV2, QgsCategorizedSymbolRendererV2, QgsGraduatedSymbolRendererV2
+from qgis.core import QgsSymbolV2, QgsRendererCategoryV2, QgsMapLayerRegistry, QgsFeature, QgsVectorLayer, QgsField
+from qgis.core import QgsGeometry, QgsPoint, QgsSpatialIndex, QgsRasterLayer, QgsColorRampShader, QgsRasterTransparency
+from qgis.core import QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsCoordinateReferenceSystem, QgsApplication, QgsDistanceArea
+from qgis.core import QgsSymbolLayerV2Utils, QgsSymbolLayerV2Registry, QgsMarkerSymbolV2, QgsLineSymbolV2, QgsMapLayer
+from qgis.core import QgsCoordinateTransform, QgsComposition, QgsComposerMap, QgsComposerLabel, QgsComposerAttributeTable, QgsComposerPicture
+from qgis.core import QgsComposerScaleBar, QgsComposerShape, QgsExpression
+from qgis.gui import QgsRubberBand, QgsSymbologyUtils, QgsComposerLegend, QgsTextAnnotationItem
 from osgeo import ogr
 import QGis
-from measured_units import *
+from measured_units import MeasureType
 import math
 from math import pi,sin,cos,sqrt
-from random import *
+from random import random, seed
 import os
 import struct
-from ow_utils import *
+from ow_utils import CleanExp, CountCaractere, FixeLibUnits, NetStrInfos
+import ftools_utils
 
 tTypeAnaLib = {'PIE':'Camemberts', 'HALF':'Hï¿½micycles','BAR':'Histogrammes', 'STACKED':'Histo. empilï¿½s',
                'GRADUATED':'SymbProp', 'DENSITY':'Densitï¿½ points',
@@ -2242,7 +2249,7 @@ def CmToPixels(MesureEnCm, zDpi):
     return int(MesureEnCm * zDpi / 2.54)
 
 def MmToPixels(MesureEnMm, zDpi):
-    return int(MesureEnCm * zDpi / 25.4)
+    return int(MesureEnMm * zDpi / 25.4)
 
 def CmToTwips(MesureEnCm):
     return int(MesureEnCm * 566.928)
